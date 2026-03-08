@@ -79,3 +79,17 @@ You don't need these yet — create them when you start each phase:
 ```
 src/modules/providers/CLAUDE.md      ← when you start Phase 2
 src/modules/auth/CLAUDE.md           ← when you start Phase 1
+
+
+## Architectural Decisions Log
+
+### TenantsRepository does not extend BaseRepository
+Date: Phase 1, T07
+Reason: Tenant is the root entity — it has no tenant_id column because
+it IS the tenant. BaseRepository's scoping logic would generate
+WHERE id = $1 AND tenant_id = $2 which is invalid on this table.
+TenantsRepository uses the same PrismaDelegate<T> pattern but without
+tenant scoping. This is correct and intentional — do not refactor.
+
+All other repositories (api_keys, requests, usage_daily, etc.) 
+extend BaseRepository and require tenantId on every call.
