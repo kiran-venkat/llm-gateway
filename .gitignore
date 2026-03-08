@@ -61,6 +61,9 @@ prisma/migrations/dev.db
 # Claude Code
 .claude/
 
+# Personal architecture notes (not for the repo)
+docs/
+
 # Dependencies
 node_modules/
 
