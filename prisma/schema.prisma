@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+
+model Tenant {
+  id               String   @id @default(uuid()) @db.Uuid
+  name             String   @db.VarChar(255)
+  slug             String   @unique @db.VarChar(100)
+  plan             String   @default("free") @db.VarChar(50)
+  monthlyBudgetUsd Decimal? @db.Decimal(10, 4)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now()) @db.Timestamptz()
+  updatedAt        DateTime @updatedAt @db.Timestamptz()
+
+  apiKeys         ApiKey[]
+  providerConfigs ProviderConfig[]
+  routingRules    RoutingRule[]
+  requests        Request[]
+  usageDaily      UsageDaily[]
+  cacheEntries    CacheEntry[]
+
+  @@map("tenants")
+}
+
+model ApiKey {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @db.Uuid
+  keyHash    String    @unique @db.VarChar(64)
+  keyPrefix  String    @db.VarChar(16)
+  name       String?   @db.VarChar(255)
+  isActive   Boolean   @default(true)
+  lastUsedAt DateTime? @db.Timestamptz()
+  expiresAt  DateTime? @db.Timestamptz()
+  createdAt  DateTime  @default(now()) @db.Timestamptz()
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requests Request[]
+
+  @@index([keyHash])
+  @@index([tenantId])
+  @@map("api_keys")
+}
+
+model ProviderConfig {
+  id                   String   @id @default(uuid()) @db.Uuid
+  tenantId             String   @db.Uuid
+  provider             String   @db.VarChar(50)
+  apiKeyEncrypted      String
+  apiKeyIv             String   @db.VarChar(32)
+  isActive             Boolean  @default(true)
+  rateLimitRpm         Int      @default(60)
+  rateLimitTpm         Int      @default(100000)
+  monthlySpendLimitUsd Decimal? @db.Decimal(10, 4)
+  createdAt            DateTime @default(now()) @db.Timestamptz()
+  updatedAt            DateTime @updatedAt @db.Timestamptz()
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, provider])
+  @@map("provider_configs")
+}
+
+model RoutingRule {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String?  @db.Uuid
+  name           String   @db.VarChar(255)
+  priority       Int      @default(100)
+  conditions     Json     @default("{}")
+  targetProvider String   @db.VarChar(50)
+  targetModel    String   @db.VarChar(100)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now()) @db.Timestamptz()
+  updatedAt      DateTime @updatedAt @db.Timestamptz()
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, priority])
+  @@map("routing_rules")
+}
+
+model Request {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @db.Uuid
+  apiKeyId         String   @db.Uuid
+  provider         String   @db.VarChar(50)
+  model            String   @db.VarChar(100)
+  requestedModel   String   @db.VarChar(100)
+  status           String   @db.VarChar(20)
+  cacheHit         Boolean  @default(false)
+  cacheType        String?  @db.VarChar(20)
+  promptTokens     Int?
+  completionTokens Int?
+  totalTokens      Int?
+  costUsd          Decimal? @db.Decimal(10, 8)
+  latencyMs        Int?
+  ttfbMs           Int?
+  errorCode        String?  @db.VarChar(100)
+  errorMessage     String?
+  stream           Boolean  @default(false)
+  requestHash      String?  @db.VarChar(64)
+  createdAt        DateTime @default(now()) @db.Timestamptz()
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  apiKey ApiKey @relation(fields: [apiKeyId], references: [id])
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@index([tenantId, provider])
+  @@map("requests")
+}
+
+model UsageDaily {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @db.Uuid
+  provider           String   @db.VarChar(50)
+  model              String   @db.VarChar(100)
+  date               DateTime @db.Date
+  totalRequests      Int      @default(0)
+  successfulRequests Int      @default(0)
+  cachedRequests     Int      @default(0)
+  errorRequests      Int      @default(0)
+  totalTokens        BigInt   @default(0)
+  promptTokens       BigInt   @default(0)
+  completionTokens   BigInt   @default(0)
+  totalCostUsd       Decimal  @default(0) @db.Decimal(12, 6)
+  avgLatencyMs       Decimal? @db.Decimal(8, 2)
+  p95LatencyMs       Int?
+  updatedAt          DateTime @updatedAt @db.Timestamptz()
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, provider, model, date])
+  @@map("usage_daily")
+}
+
+
+
+model ModelPricing {
+  id                    String    @id @default(uuid()) @db.Uuid
+  provider              String    @db.VarChar(50)
+  model                 String    @db.VarChar(100)
+  inputCostPer1kTokens  Decimal   @db.Decimal(10, 8)
+  outputCostPer1kTokens Decimal   @db.Decimal(10, 8)
+  validFrom             DateTime  @default(now()) @db.Timestamptz()
+  validTo               DateTime? @db.Timestamptz()
+
+  @@unique([provider, model, validFrom])
+  @@map("model_pricing")
+}
+
+model CacheEntry {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @db.Uuid
+  requestHash      String    @db.VarChar(64)
+  provider         String    @db.VarChar(50)
+  model            String    @db.VarChar(100)
+  promptTokens     Int
+  completionTokens Int
+  hitCount         Int       @default(0)
+  costSavedUsd     Decimal   @default(0) @db.Decimal(10, 8)
+  ttlSeconds       Int       @default(3600)
+  createdAt        DateTime  @default(now()) @db.Timestamptz()
+  lastHitAt        DateTime? @db.Timestamptz()
+  expiresAt        DateTime  @db.Timestamptz()
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, requestHash])
+  @@map("cache_entries")
+}
