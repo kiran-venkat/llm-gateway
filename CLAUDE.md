@@ -64,7 +64,7 @@ src/modules/<name>/
 
 ### Current task progress
 Phase 0: COMPLETE (T01-T06)
-Phase 1: IN PROGRESS (T07 next)
+Phase 1: IN PROGRESS — Completed T09, next is T10
 ```
 
 Update the "Current task progress" line after every session. Claude Code reads this and immediately knows where you are without you explaining it.
