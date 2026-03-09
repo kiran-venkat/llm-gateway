@@ -163,10 +163,9 @@ describe('Auth integration — full round-trip', () => {
 
   it('full round-trip: generate → auth → cache hit → revoke → 401', async () => {
     // 1. Generate a real API key via the service
-    const { key: rawKey, id: keyId } = await apiKeysService.generate(
-      tenantId,
-      { name: 'integration-test-key' },
-    );
+    const { key: rawKey, id: keyId } = await apiKeysService.generate(tenantId, {
+      name: 'integration-test-key',
+    });
     const keyHash = hashApiKey(rawKey);
     const cacheKey = `${AUTH_CACHE_PREFIX}${keyHash}`;
 
