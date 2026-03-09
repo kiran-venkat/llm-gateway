@@ -10,13 +10,12 @@ import { Redis } from 'ioredis';
 import { Request } from 'express';
 import { hashApiKey } from '../utils/hash.util';
 import { AuthContext } from '../interfaces/auth-context.interface';
+import {
+  AUTH_CACHE_PREFIX,
+  AUTH_CACHE_TTL_SECONDS,
+} from '../constants/redis-keys';
 import { ApiKeysRepository } from '../../modules/api-keys/api-keys.repository';
 import { TenantsService } from '../../modules/tenants/tenants.service';
-
-/** Redis key prefix for cached auth contexts. */
-const CACHE_PREFIX = 'auth:hash:';
-/** Cache TTL in seconds (5 minutes). */
-const CACHE_TTL_SECONDS = 300;
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -41,7 +40,7 @@ export class AuthGuard implements CanActivate {
 
     // ── b. Hash ───────────────────────────────────────────────────────────────
     const keyHash = hashApiKey(token);
-    const cacheKey = `${CACHE_PREFIX}${keyHash}`;
+    const cacheKey = `${AUTH_CACHE_PREFIX}${keyHash}`;
 
     // ── c. Redis fast path ────────────────────────────────────────────────────
     const cached = await this.redis.get(cacheKey);
@@ -88,7 +87,7 @@ export class AuthGuard implements CanActivate {
       cacheKey,
       JSON.stringify(authContext),
       'EX',
-      CACHE_TTL_SECONDS,
+      AUTH_CACHE_TTL_SECONDS,
     );
 
     // ── h. Attach to request ──────────────────────────────────────────────────

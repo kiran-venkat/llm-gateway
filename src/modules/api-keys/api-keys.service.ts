@@ -1,6 +1,9 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { InjectRedis } from '@nestjs-modules/ioredis';
+import { Redis } from 'ioredis';
 import { randomBytes } from 'crypto';
 import { hashApiKey } from '../../common/utils/hash.util';
+import { AUTH_CACHE_PREFIX } from '../../common/constants/redis-keys';
 import { ApiKeysRepository } from './api-keys.repository';
 import {
   ApiKeyListItemDto,
@@ -10,7 +13,10 @@ import { CreateApiKeyDto } from './dto/create-api-key.dto';
 
 @Injectable()
 export class ApiKeysService {
-  constructor(private readonly repo: ApiKeysRepository) {}
+  constructor(
+    private readonly repo: ApiKeysRepository,
+    @InjectRedis() private readonly redis: Redis,
+  ) {}
 
   /**
    * Generates a new API key for the tenant.
@@ -52,6 +58,9 @@ export class ApiKeysService {
    * The record is kept for audit. Verifies the key belongs to the requesting
    * tenant before revoking — cross-tenant revocation is rejected with 404
    * (not 403, to avoid confirming the key exists for another tenant).
+   *
+   * After updating the DB, the auth cache entry is eagerly deleted so the
+   * revocation takes effect immediately rather than waiting for TTL expiry.
    */
   async revoke(tenantId: string, id: string): Promise<void> {
     const key = await this.repo.findById(tenantId, id);
@@ -62,6 +71,8 @@ export class ApiKeysService {
       );
     }
     await this.repo.update(tenantId, id, { isActive: false });
+    // Eagerly invalidate the auth cache so the revocation takes effect at once.
+    await this.redis.del(`${AUTH_CACHE_PREFIX}${key.keyHash}`);
   }
 
   /**
