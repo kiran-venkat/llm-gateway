@@ -1,6 +1,7 @@
 import { Module, OnModuleInit } from '@nestjs/common';
 import { AdapterRegistry } from './registry/adapter.registry';
 import { AnthropicAdapter } from './adapters/anthropic/anthropic.adapter';
+import { OpenAIAdapter } from './adapters/openai/openai.adapter';
 
 @Module({
   providers: [AdapterRegistry],
@@ -11,5 +12,6 @@ export class ProvidersModule implements OnModuleInit {
 
   onModuleInit(): void {
     this.registry.register(new AnthropicAdapter());
+    this.registry.register(new OpenAIAdapter());
   }
 }
