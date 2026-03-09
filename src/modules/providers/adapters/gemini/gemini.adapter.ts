@@ -1,6 +1,9 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { IProviderAdapter } from '../../../../common/interfaces/provider-adapter.interface';
-import { GatewayRequest, Message } from '../../../../common/dto/gateway-request.dto';
+import {
+  GatewayRequest,
+  Message,
+} from '../../../../common/dto/gateway-request.dto';
 import { GatewayResponse } from '../../../../common/dto/gateway-response.dto';
 import { StreamChunk } from '../../../../common/dto/stream-chunk.dto';
 import { GatewayError } from '../../../../common/dto/gateway-error.dto';
@@ -15,7 +18,10 @@ interface GeminiMessage {
 export class GeminiAdapter implements IProviderAdapter {
   readonly name = 'gemini';
 
-  async complete(request: GatewayRequest, apiKey: string): Promise<GatewayResponse> {
+  async complete(
+    request: GatewayRequest,
+    apiKey: string,
+  ): Promise<GatewayResponse> {
     const genai = new GoogleGenerativeAI(apiKey);
     const model = genai.getGenerativeModel({ model: request.model });
     const geminiMessages = this.translateMessages(request.messages);
@@ -36,12 +42,17 @@ export class GeminiAdapter implements IProviderAdapter {
     };
   }
 
-  async *completeStream(request: GatewayRequest, apiKey: string): AsyncIterable<StreamChunk> {
+  async *completeStream(
+    request: GatewayRequest,
+    apiKey: string,
+  ): AsyncIterable<StreamChunk> {
     const genai = new GoogleGenerativeAI(apiKey);
     const model = genai.getGenerativeModel({ model: request.model });
     const geminiMessages = this.translateMessages(request.messages);
 
-    const streamResp = await model.generateContentStream({ contents: geminiMessages });
+    const streamResp = await model.generateContentStream({
+      contents: geminiMessages,
+    });
 
     let chunkIndex = 0;
 
@@ -72,14 +83,36 @@ export class GeminiAdapter implements IProviderAdapter {
   mapError(error: unknown): GatewayError {
     const message = error instanceof Error ? error.message : String(error);
 
+    // Google Generative AI SDK does not expose structured error codes or typed
+    // error classes — status codes are embedded in the message string.
+    // String matching is the only reliable detection method available.
+    // Replace with structured checks if a future SDK version adds them.
     if (message.includes('429')) {
-      return { code: 'rate_limit', message, provider: 'gemini', retryable: true, statusCode: 429 };
+      return {
+        code: 'rate_limit',
+        message,
+        provider: 'gemini',
+        retryable: true,
+        statusCode: 429,
+      };
     }
     if (message.includes('401')) {
-      return { code: 'auth_error', message, provider: 'gemini', retryable: false, statusCode: 401 };
+      return {
+        code: 'auth_error',
+        message,
+        provider: 'gemini',
+        retryable: false,
+        statusCode: 401,
+      };
     }
     if (message.includes('404')) {
-      return { code: 'invalid_model', message, provider: 'gemini', retryable: false, statusCode: 400 };
+      return {
+        code: 'invalid_model',
+        message,
+        provider: 'gemini',
+        retryable: false,
+        statusCode: 400,
+      };
     }
     if (message.includes('503')) {
       return {
@@ -100,7 +133,13 @@ export class GeminiAdapter implements IProviderAdapter {
       };
     }
 
-    return { code: 'unknown', message, provider: 'gemini', retryable: false, statusCode: 500 };
+    return {
+      code: 'unknown',
+      message,
+      provider: 'gemini',
+      retryable: false,
+      statusCode: 500,
+    };
   }
 
   /**
@@ -125,6 +164,8 @@ export class GeminiAdapter implements IProviderAdapter {
       }));
 
     // ── Step 3: prepend system content to first user message ─────────────────
+    // Mutates the GeminiMessage object in place — safe because `mapped` is a
+    // local array created above; the original request.messages are not touched.
     if (systemContent) {
       const firstUser = mapped.find((m) => m.role === 'user');
       if (firstUser) {

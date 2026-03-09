@@ -102,10 +102,10 @@ export class RouterService {
    * All present conditions must match (AND logic).
    * An empty/null conditions object matches everything.
    */
-  matchesConditions(
-    request: RouterRequest,
-    conditions: unknown,
-  ): boolean {
+  matchesConditions(request: RouterRequest, conditions: unknown): boolean {
+    // null/empty conditions = universal match (catch-all rule). Do not change
+    // this to return false — a rule with no conditions is intentionally meant
+    // to match every request (e.g. "route all traffic to provider X").
     if (!conditions || typeof conditions !== 'object') return true;
     const c = conditions as RuleConditions;
 
@@ -120,6 +120,9 @@ export class RouterService {
       return false;
     }
 
+    // If request.maxTokens is undefined, all token-based conditions fail
+    // silently (the rule is skipped). A request without a token constraint
+    // cannot satisfy a token-based rule — this is intentional.
     if (
       c.max_tokens_gt !== undefined &&
       (request.maxTokens === undefined || request.maxTokens <= c.max_tokens_gt)

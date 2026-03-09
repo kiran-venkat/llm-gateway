@@ -26,6 +26,11 @@ export const MODEL_PROVIDER_MAP: Record<string, string> = {
  * Used as Step 4 in RouterService.resolve() — handles future model releases
  * (e.g. 'gpt-5') without needing to update this map.
  * Evaluated in order — first match wins.
+ *
+ * ORDER MATTERS: more-specific prefixes must precede less-specific ones.
+ * 'o1' is listed after 'gpt-' but there is no ambiguity today. If adding
+ * new prefixes within the same provider family, put the longer/stricter
+ * prefix first to prevent it from being shadowed by a shorter one.
  */
 export const MODEL_PREFIX_MAP: Array<{ prefix: string; provider: string }> = [
   { prefix: 'gpt-', provider: 'openai' },

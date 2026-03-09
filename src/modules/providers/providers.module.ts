@@ -23,6 +23,9 @@ export class ProvidersModule implements OnModuleInit {
   constructor(private readonly registry: AdapterRegistry) {}
 
   onModuleInit(): void {
+    // Adapters are instantiated with new() — they create SDK clients per-request
+    // and have no NestJS service dependencies. Do not add constructor params to
+    // adapters; if one needs a NestJS service, convert it to a proper provider.
     this.registry.register(new AnthropicAdapter());
     this.registry.register(new OpenAIAdapter());
     this.registry.register(new GeminiAdapter());

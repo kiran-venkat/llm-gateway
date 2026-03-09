@@ -62,7 +62,10 @@ export class StreamService {
         );
       }
     } catch (err: unknown) {
-      // Stream error: write a structured error event then close cleanly
+      // SSE error strategy: once 200 OK + headers are flushed, the HTTP status
+      // cannot change — headers are already on the wire. A mid-stream error is
+      // signalled as a structured `{ error: true }` SSE event followed by [DONE].
+      // Clients must check for this event and surface it as an error to the user.
       this.logger.error(`Stream error for request ${requestId}`, err);
       response.write(`data: ${JSON.stringify({ error: true })}\n\n`);
     }

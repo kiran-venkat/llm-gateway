@@ -96,8 +96,11 @@ extend BaseRepository and require tenantId on every call.
 Date: Phase 2, T15
 Reason: Anthropic's API does not accept system messages inside the
 messages[] array. They must be passed as a separate top-level `system`
-string. The adapter strips system messages from the array and promotes
-the last one found to the `system` param before calling the SDK.
+string. The adapter uses `.find()` to pick the FIRST system message
+(not the last), strips all system messages from the array, and passes
+that string as the top-level `system` param before calling the SDK.
+Do not change `.find()` to `.findLast()` — the current behavior is
+intentional and the tests are written against it.
 
 ### GeminiAdapter enforces alternating turn order
 Date: Phase 2, T16
@@ -138,3 +141,92 @@ value. Using @Res() (passthrough: false) gives the controller full ownership
 of the response lifecycle. Non-streaming path calls res.status(200).json()
 manually. Both paths call res.status(200) explicitly because NestJS defaults
 to 201 for POST routes when passthrough is disabled.
+
+### AnthropicAdapter hardcodes max_tokens default of 1024
+Date: Phase 2, T15
+Reason: Anthropic's API requires max_tokens — it has no server-side default
+and will reject calls where max_tokens is absent. We default to 1024 when
+the caller does not specify. This is intentionally conservative to avoid
+runaway costs. Do not remove the ?? 1024 fallback.
+
+### AnthropicAdapter imports APIError as named export
+Date: Phase 2, T15
+Reason: `APIError` must be imported as a named export (`import { APIError }`)
+not as `Anthropic.APIError`. When Jest mocks the module, named exports are
+preserved in the mock module object but namespace-style access (`Anthropic.APIError`)
+points to the mock default and instanceof checks fail. The named import
+keeps mapError() instanceof checks working in both real and test contexts.
+
+### GeminiAdapter mapError uses string.includes() not structured codes
+Date: Phase 2, T16
+Reason: The Google Generative AI SDK does not expose structured error codes
+or typed error classes — errors surface as plain JavaScript Error objects
+with status codes embedded in the message string. String matching on the
+message is the only reliable detection method available. If Google adds
+structured error types in a future SDK version, this can be replaced.
+
+### GeminiAdapter translateMessages mutates the mapped message object
+Date: Phase 2, T16
+Reason: When prepending system content to the first user message,
+translateMessages() finds the first GeminiMessage with role 'user' and
+mutates its parts[0].text in place. The mapped array is local to this call,
+so mutation is safe — the original request.messages are not modified.
+This avoids a full re-map pass over the array.
+
+### RouterService null/empty conditions match every request
+Date: Phase 3, T19
+Reason: matchesConditions() returns true when conditions is null, undefined,
+or an empty object. This allows routing rules to act as unconditional
+catch-alls: a rule with no conditions will match any request. A rule with
+conditions that include only model_pattern will only test the model field.
+This is AND logic — all specified conditions must match; absent conditions
+are not tested. Do not change null/empty to "reject everything".
+
+### RouterService undefined maxTokens silently fails token-based rules
+Date: Phase 3, T19
+Reason: If request.maxTokens is undefined and a routing rule has a
+max_tokens_gt or max_tokens_lt condition, matchesConditions() returns false
+(the rule does not match). This is intentional — a request with no token
+constraint cannot satisfy a token-based routing rule. Be aware that this
+means token-based rules are silently skipped for requests that omit max_tokens.
+
+### MODEL_PREFIX_MAP is order-dependent; first match wins
+Date: Phase 3, T19
+Reason: RouterService.resolve() iterates MODEL_PREFIX_MAP and returns on the
+first matching prefix. The 'o1' entry must appear before any other entry whose
+prefix could match 'o1-mini' (there is none today, but be careful if adding
+new OpenAI model families). When adding new prefixes, shorter/more-specific
+prefixes must come before longer/catch-all ones within the same provider family.
+
+### ProvidersModule instantiates adapters with new() in onModuleInit
+Date: Phase 2, T13
+Reason: Adapters (AnthropicAdapter, OpenAIAdapter, GeminiAdapter) create SDK
+client instances per-request inside complete()/completeStream() — they have
+no constructor dependencies and do not need NestJS DI. They are registered
+via new() inside onModuleInit() so the registry is populated before any
+request handler runs. Do not add constructor parameters to adapters; if an
+adapter needs a NestJS service, refactor it as a proper NestJS provider.
+
+### AuthGuard lastUsedAt update is fire-and-forget
+Date: Phase 1, T09
+Reason: Updating last_used_at on every authenticated request is bookkeeping
+— the client must not pay the latency cost. The update is void-ed with a
+.catch() logger fallback. A failed update only means staleness in the
+lastUsedAt column; it does not affect auth correctness.
+
+### GatewayError.retryable is defined but no retry loop exists yet
+Date: Phase 2, T12
+Reason: retryable is a forward-looking field populated by all adapters and
+surfaced in error responses. The gateway does NOT currently retry failed
+provider calls — that is planned for Phase 4. For now retryable informs the
+*client* whether it is safe to retry. Do not add a retry loop without a
+circuit-breaker and jitter to avoid thundering-herd against the provider.
+
+### StreamService stream errors keep HTTP 200 and write SSE error event
+Date: Phase 3, T22
+Reason: SSE uses a single long-lived HTTP connection. Once the 200 OK and
+SSE headers are flushed to the client, it is impossible to change the HTTP
+status code — the headers are already on the wire. A mid-stream provider
+error is therefore signalled as a structured SSE data event
+`{ error: true }` followed by [DONE], which clients can detect and surface
+as an error to the end user. This is the standard SSE error pattern.
