@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
 import { RedisModule } from '@nestjs-modules/ioredis';
+import { BullModule } from '@nestjs/bull';
 import { AppConfigModule } from './config/config.module';
 import { AppConfigService } from './config/config.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { ProvidersModule } from './modules/providers/providers.module';
+import { GatewayModule } from './modules/gateway/gateway.module';
 
 @Module({
   imports: [
@@ -18,10 +20,18 @@ import { ProvidersModule } from './modules/providers/providers.module';
       }),
       inject: [AppConfigService],
     }),
+    BullModule.forRootAsync({
+      imports: [AppConfigModule],
+      useFactory: (config: AppConfigService) => ({
+        redis: config.getRedisUrl(),
+      }),
+      inject: [AppConfigService],
+    }),
     PrismaModule,
     TenantsModule,
     ApiKeysModule,
     ProvidersModule,
+    GatewayModule,
   ],
 })
 export class AppModule {}

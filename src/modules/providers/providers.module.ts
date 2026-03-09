@@ -1,4 +1,6 @@
 import { Module, OnModuleInit } from '@nestjs/common';
+import { ApiKeysModule } from '../api-keys/api-keys.module';
+import { TenantsModule } from '../tenants/tenants.module';
 import { AdapterRegistry } from './registry/adapter.registry';
 import { AnthropicAdapter } from './adapters/anthropic/anthropic.adapter';
 import { OpenAIAdapter } from './adapters/openai/openai.adapter';
@@ -8,6 +10,7 @@ import { ProviderConfigsService } from './provider-configs.service';
 import { ProviderConfigsController } from './provider-configs.controller';
 
 @Module({
+  imports: [ApiKeysModule, TenantsModule],
   controllers: [ProviderConfigsController],
   providers: [
     AdapterRegistry,

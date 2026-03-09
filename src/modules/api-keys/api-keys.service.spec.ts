@@ -49,7 +49,8 @@ describe('ApiKeysService', () => {
 
   beforeEach(() => {
     repo = makeMockRepo();
-    service = new ApiKeysService(repo);
+    const mockRedis = { del: jest.fn().mockResolvedValue(1) } as unknown as import('ioredis').Redis;
+    service = new ApiKeysService(repo, mockRedis);
   });
 
   // -------------------------------------------------------------------------
