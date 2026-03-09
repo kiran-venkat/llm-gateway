@@ -5,6 +5,7 @@ import { AppConfigService } from './config/config.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
+import { ProvidersModule } from './modules/providers/providers.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { TenantsModule } from './modules/tenants/tenants.module';
     PrismaModule,
     TenantsModule,
     ApiKeysModule,
+    ProvidersModule,
   ],
 })
 export class AppModule {}
