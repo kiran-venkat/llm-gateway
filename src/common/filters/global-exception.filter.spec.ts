@@ -13,6 +13,7 @@ function makeHost(overrides: {
   path?: string;
   method?: string;
   headers?: Record<string, string>;
+  requestId?: string;
 }): { host: ArgumentsHost; jsonMock: jest.Mock; statusMock: jest.Mock } {
   const jsonMock = jest.fn();
   const statusMock = jest.fn().mockReturnValue({ json: jsonMock });
@@ -21,6 +22,7 @@ function makeHost(overrides: {
     path: overrides.path ?? '/test',
     method: overrides.method ?? 'GET',
     headers: overrides.headers ?? {},
+    requestId: overrides.requestId,
   };
 
   const host = {
@@ -36,7 +38,11 @@ function makeHost(overrides: {
 function captureResponse(
   filter: GlobalExceptionFilter,
   exception: unknown,
-  hostOverrides: { path?: string; headers?: Record<string, string> } = {},
+  hostOverrides: {
+    path?: string;
+    headers?: Record<string, string>;
+    requestId?: string;
+  } = {},
 ): { status: number; body: ErrorResponse & { stack?: string } } {
   const { host, jsonMock, statusMock } = makeHost(hostOverrides);
   filter.catch(exception, host);
@@ -252,9 +258,9 @@ describe('GlobalExceptionFilter', () => {
   // -------------------------------------------------------------------------
 
   describe('X-Request-Id', () => {
-    it('echoes the client-provided X-Request-Id header back in the response', () => {
+    it('uses the requestId stamped by RequestIdMiddleware', () => {
       const { body } = captureResponse(filter, new HttpException('x', 400), {
-        headers: { 'x-request-id': 'client-trace-abc-123' },
+        requestId: 'client-trace-abc-123',
       });
       expect(body.request_id).toBe('client-trace-abc-123');
     });

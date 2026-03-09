@@ -1,11 +1,11 @@
 import {
   Body,
   Controller,
-  HttpCode,
   HttpException,
   HttpStatus,
   Logger,
   Post,
+  Req,
   Res,
   UseGuards,
   Headers,
@@ -30,6 +30,23 @@ function isGatewayError(err: unknown): err is GatewayError {
   );
 }
 
+function handleError(err: unknown, logger: Logger): never {
+  if (err instanceof ProviderNotFoundError) {
+    throw new HttpException(err.message, HttpStatus.NOT_FOUND);
+  }
+  if (isGatewayError(err)) {
+    throw new HttpException(
+      { code: err.code, message: err.message, retryable: err.retryable },
+      err.statusCode,
+    );
+  }
+  logger.error('Unhandled gateway error', err);
+  throw new HttpException(
+    'Internal gateway error',
+    HttpStatus.INTERNAL_SERVER_ERROR,
+  );
+}
+
 @Controller('v1/chat/completions')
 @UseGuards(AuthGuard)
 export class GatewayController {
@@ -37,49 +54,59 @@ export class GatewayController {
 
   constructor(private readonly gatewayService: GatewayService) {}
 
+  /**
+   * POST /v1/chat/completions
+   *
+   * Uses @Res() without passthrough so we control the response for both paths.
+   * RequestIdMiddleware has already stamped req.requestId and X-Request-Id
+   * on the response before this handler runs.
+   */
   @Post()
-  @HttpCode(HttpStatus.OK)
   async chatCompletion(
     @Body() dto: ChatCompletionRequestDto,
     @TenantContext() ctx: AuthContext,
+    @Req() req: Request,
     @Headers('x-provider') xProvider?: string,
     @Headers('x-tag') xTag?: string,
-    @Res({ passthrough: true }) res?: Response,
-  ): Promise<ChatCompletionResponseDto> {
-    let result: Awaited<ReturnType<GatewayService['complete']>>;
+    @Res() res?: Response,
+  ): Promise<void> {
+    const requestId = req.requestId;
 
-    try {
-      result = await this.gatewayService.complete(dto, ctx, xProvider, xTag);
-    } catch (err: unknown) {
-      if (err instanceof ProviderNotFoundError) {
-        throw new HttpException(err.message, HttpStatus.NOT_FOUND);
-      }
-      if (isGatewayError(err)) {
-        throw new HttpException(
-          { code: err.code, message: err.message, retryable: err.retryable },
-          err.statusCode,
+    // ── Streaming path ───────────────────────────────────────────────────────
+    if (dto.stream) {
+      res!.status(HttpStatus.OK);
+      try {
+        await this.gatewayService.completeStream(
+          dto,
+          ctx,
+          res!,
+          requestId,
+          xProvider,
+          xTag,
         );
+      } catch (err: unknown) {
+        handleError(err, this.logger);
       }
-      // Unknown error — log and return 500
-      this.logger.error('Unhandled gateway error', err);
-      throw new HttpException(
-        'Internal gateway error',
-        HttpStatus.INTERNAL_SERVER_ERROR,
+      return;
+    }
+
+    // ── Non-streaming path ───────────────────────────────────────────────────
+    let result: Awaited<ReturnType<GatewayService['complete']>>;
+    try {
+      result = await this.gatewayService.complete(
+        dto,
+        ctx,
+        requestId,
+        xProvider,
+        xTag,
       );
+    } catch (err: unknown) {
+      handleError(err, this.logger);
     }
 
-    const { response, decision, requestId } = result;
+    const { response, decision } = result!;
 
-    // Set tracing/routing headers on the response
-    res?.setHeader('X-Gateway-Provider', decision.provider);
-    res?.setHeader('X-Gateway-Model', decision.model);
-    res?.setHeader('X-Request-Id', requestId);
-    if (decision.ruleId) {
-      res?.setHeader('X-Gateway-Rule-Id', decision.ruleId);
-    }
-
-    // Return OpenAI-compatible response shape
-    return {
+    const payload: ChatCompletionResponseDto = {
       id: `chatcmpl-${randomUUID()}`,
       object: 'chat.completion',
       created: Math.floor(Date.now() / 1000),
@@ -97,5 +124,13 @@ export class GatewayController {
         total_tokens: response.totalTokens,
       },
     };
+
+    res!.status(HttpStatus.OK);
+    res!.setHeader('X-Gateway-Provider', decision.provider);
+    res!.setHeader('X-Gateway-Model', decision.model);
+    if (decision.ruleId) {
+      res!.setHeader('X-Gateway-Rule-Id', decision.ruleId);
+    }
+    res!.json(payload);
   }
 }

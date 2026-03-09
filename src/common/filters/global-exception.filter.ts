@@ -38,8 +38,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const req = ctx.getRequest<Request>();
     const res = ctx.getResponse<Response>();
 
-    const requestId =
-      (req.headers['x-request-id'] as string | undefined) ?? randomUUID();
+    // Prefer the ID stamped by RequestIdMiddleware; fall back for tests/calls
+    // that bypass the middleware stack (e.g. raw unit-test invocations).
+    const requestId = req.requestId ?? randomUUID();
 
     const { status, body } = this.buildResponse(exception, req, requestId);
 

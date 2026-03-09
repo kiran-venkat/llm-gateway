@@ -16,6 +16,8 @@ declare global {
   namespace Express {
     interface Request {
       tenant?: AuthContext;
+      /** Set by RequestIdMiddleware before any guard or handler runs. */
+      requestId: string;
     }
   }
 }
