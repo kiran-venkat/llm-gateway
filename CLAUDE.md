@@ -1,9 +1,9 @@
 # LLM Gateway — Project Index
 
 ## CURRENT STATE
-Last session ended: Phase 3 complete, T23 done
-Next task: T24 — Redis Lua sliding window rate limiter
-Tests passing: 284
+Last session ended: Phase 4 complete, T28 done
+Next task: T29
+Tests passing: 323
 Build status: clean
 Active branch: dev
 
@@ -75,7 +75,8 @@ Phase 0: COMPLETE (T01-T06)
 Phase 1: COMPLETE (T07-T11)
 Phase 2: COMPLETE (T12-T18)
 Phase 3: COMPLETE (T19-T23)
-Phase 4: IN PROGRESS — T24 next
+Phase 4: COMPLETE (T24-T28)
+Phase 5: IN PROGRESS — T29 next
 
 ---
 
@@ -221,6 +222,41 @@ surfaced in error responses. The gateway does NOT currently retry failed
 provider calls — that is planned for Phase 4. For now retryable informs the
 *client* whether it is safe to retry. Do not add a retry loop without a
 circuit-breaker and jitter to avoid thundering-herd against the provider.
+
+### RateLimitGuard estimates tokens before any Redis call
+Date: Phase 4, T26
+Reason: Token estimation is pure CPU arithmetic (character count / 4). It must
+run before checkRpm() increments the sliding window counter. If TPM would reject
+the request, an RPM slot must not be consumed first — that would cause phantom
+RPM decrements for requests that were always going to be blocked. CPU work is
+free; Redis round-trips are not. Never move estimateTokens() inside or after the
+RPM check block.
+
+### ProviderStatusService uses Promise.allSettled not Promise.all
+Date: Phase 4, T28
+Reason: One down or unreachable provider must never cause the entire
+GET /api/v1/providers/status endpoint to throw. Promise.all rejects as soon as
+any promise rejects; Promise.allSettled always resolves with a per-promise
+result. checkProvider() also has its own try/catch so it always fulfills, making
+allSettled doubly defensive — it catches the rare case where checkProvider()
+itself throws (e.g. decrypt failure). Do not replace with Promise.all.
+
+### Provider status route declared before /:provider param route
+Date: Phase 4, T28
+Reason: Express matches routes top-to-bottom. If DELETE /:provider appeared
+before GET /status, a GET /status request would match /:provider with
+provider = 'status'. The @Get('status') handler must be declared before
+@Delete(':provider') in the controller class. NestJS preserves declaration
+order when registering Express routes.
+
+### RateLimitResult carries limit field to avoid extra DB lookup in controller
+Date: Phase 4, T27
+Reason: The X-RateLimit-Limit-Rpm response header requires the configured RPM
+limit value. Rather than having the controller re-query ProviderConfigsRepository
+to get the limit (adding a DB round-trip on every request), runScript() in
+RateLimitService accepts limit as a parameter and returns it in RateLimitResult.
+The controller reads rateLimit.limit directly from the already-computed result.
+Do not remove the limit field from RateLimitResult.
 
 ### StreamService stream errors keep HTTP 200 and write SSE error event
 Date: Phase 3, T22
