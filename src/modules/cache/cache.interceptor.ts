@@ -1,0 +1,158 @@
+import {
+  CallHandler,
+  ExecutionContext,
+  Injectable,
+  Logger,
+  NestInterceptor,
+} from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
+import { Request, Response } from 'express';
+import { Observable, EMPTY } from 'rxjs';
+import { randomUUID } from 'crypto';
+import { CacheService } from './cache.service';
+import { buildCacheKey } from './cache-key.util';
+import { RouterService, RouterRequest } from '../router/router.service';
+import { UsageJobPayload } from '../gateway/gateway.service';
+
+@Injectable()
+export class CacheInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(CacheInterceptor.name);
+
+  constructor(
+    private readonly cacheService: CacheService,
+    private readonly routerService: RouterService,
+    @InjectQueue('usage') private readonly usageQueue: Queue,
+  ) {}
+
+  async intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Promise<Observable<unknown>> {
+    const req = context.switchToHttp().getRequest<Request>();
+    const res = context.switchToHttp().getResponse<Response>();
+
+    const tenant = req.tenant;
+    if (!tenant) {
+      return next.handle();
+    }
+
+    const body = req.body as {
+      model?: string;
+      messages?: unknown[];
+      max_tokens?: number;
+      temperature?: number;
+      stream?: boolean;
+      'x-no-cache'?: boolean;
+    };
+
+    // Skip cache for streaming or explicit no-cache
+    if (body.stream === true || body['x-no-cache'] === true) {
+      return next.handle();
+    }
+
+    const xProvider = req.headers['x-provider'] as string | undefined;
+    const xTag = req.headers['x-tag'] as string | undefined;
+
+    // Resolve provider to build an accurate cache key
+    let decision: import('../../common/interfaces/routing-decision.interface').RoutingDecision;
+    try {
+      const routerRequest: RouterRequest = {
+        model: body.model ?? '',
+        messages:
+          (body.messages as import('../../common/dto/gateway-request.dto').Message[]) ??
+          [],
+        maxTokens: body.max_tokens,
+        temperature: body.temperature,
+        stream: body.stream,
+        tenantId: tenant.tenantId,
+        xProvider,
+        xTag,
+      };
+      decision = await this.routerService.resolve(
+        routerRequest,
+        tenant.tenantId,
+      );
+    } catch (err: unknown) {
+      this.logger.warn(
+        'Router resolution failed in CacheInterceptor, skipping cache',
+        err,
+      );
+      return next.handle();
+    }
+
+    // Attach decision to request so GatewayService can reuse it
+    req['routingDecision'] = decision;
+
+    const cacheKey = buildCacheKey(tenant.tenantId, {
+      provider: decision.provider,
+      model: body.model ?? '',
+      messages:
+        (body.messages as import('../../common/dto/gateway-request.dto').Message[]) ??
+        [],
+      maxTokens: body.max_tokens,
+      temperature: body.temperature,
+      tenantId: tenant.tenantId,
+    });
+
+    req['cacheKey'] = cacheKey;
+
+    const cached = await this.cacheService.get(cacheKey);
+
+    if (cached) {
+      this.logger.log(`Cache HIT key=${cacheKey} tenant=${tenant.tenantId}`);
+
+      res.setHeader('X-Cache-Hit', 'true');
+      res.setHeader('X-Cache-Type', 'exact');
+      res.setHeader('X-Gateway-Provider', cached.provider);
+      res.setHeader('X-Gateway-Model', cached.model);
+      res.setHeader('X-Latency-Ms', '0');
+
+      // Fire-and-forget usage job
+      const payload: UsageJobPayload = {
+        requestId: req.requestId,
+        tenantId: tenant.tenantId,
+        provider: cached.provider,
+        model: cached.model,
+        ruleId: decision.ruleId,
+        promptTokens: cached.promptTokens,
+        completionTokens: cached.completionTokens,
+        totalTokens: cached.promptTokens + cached.completionTokens,
+        durationMs: 0,
+        finishReason: 'stop',
+        cacheHit: true,
+      };
+      void this.usageQueue
+        .add('log-usage', payload)
+        .catch((err: unknown) =>
+          this.logger.warn('Failed to enqueue cache-hit usage job', err),
+        );
+
+      res.status(200).json({
+        id: `gw-cached-${randomUUID()}`,
+        object: 'chat.completion',
+        created: Math.floor(Date.now() / 1000),
+        model: cached.model,
+        choices: [
+          {
+            index: 0,
+            message: { role: 'assistant', content: cached.content },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: {
+          prompt_tokens: cached.promptTokens,
+          completion_tokens: cached.completionTokens,
+          total_tokens: cached.promptTokens + cached.completionTokens,
+        },
+      });
+
+      return EMPTY;
+    }
+
+    this.logger.log(`Cache MISS key=${cacheKey} tenant=${tenant.tenantId}`);
+    res.setHeader('X-Cache-Hit', 'false');
+
+    return next.handle();
+  }
+}

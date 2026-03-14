@@ -6,6 +6,7 @@ import { StreamModule } from '../stream/stream.module';
 import { ApiKeysModule } from '../api-keys/api-keys.module';
 import { TenantsModule } from '../tenants/tenants.module';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
+import { CacheModule } from '../cache/cache.module';
 import { GatewayService } from './gateway.service';
 import { GatewayController } from './gateway.controller';
 
@@ -18,6 +19,7 @@ import { GatewayController } from './gateway.controller';
     ApiKeysModule,
     TenantsModule,
     RateLimitModule,
+    CacheModule,
   ],
   providers: [GatewayService],
   controllers: [GatewayController],

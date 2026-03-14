@@ -8,6 +8,7 @@ import {
   Req,
   Res,
   UseGuards,
+  UseInterceptors,
   Headers,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
@@ -22,6 +23,7 @@ import { ProviderNotFoundError } from '../providers/registry/adapter.registry';
 import { GatewayService } from './gateway.service';
 import { ChatCompletionRequestDto } from './dto/chat-completion-request.dto';
 import { ChatCompletionResponseDto } from './dto/chat-completion-response.dto';
+import { CacheInterceptor } from '../cache/cache.interceptor';
 
 function isGatewayError(err: unknown): err is GatewayError {
   return (
@@ -69,6 +71,7 @@ function applyRateLimitHeaders(
 
 @Controller('v1/chat/completions')
 @UseGuards(AuthGuard, RateLimitGuard)
+@UseInterceptors(CacheInterceptor)
 export class GatewayController {
   private readonly logger = new Logger(GatewayController.name);
 
@@ -107,6 +110,7 @@ export class GatewayController {
           requestId,
           xProvider,
           xTag,
+          req.routingDecision,
         );
       } catch (err: unknown) {
         handleError(err, this.logger);
@@ -123,6 +127,7 @@ export class GatewayController {
         requestId,
         xProvider,
         xTag,
+        req.routingDecision,
       );
     } catch (err: unknown) {
       handleError(err, this.logger);

@@ -24,6 +24,7 @@ export interface UsageJobPayload {
   durationMs: number;
   finishReason: string;
   stream?: boolean;
+  cacheHit?: boolean;
 }
 
 export interface GatewayCompleteResult {
@@ -50,21 +51,23 @@ export class GatewayService {
     ctx: AuthContext,
     xProvider?: string,
     xTag?: string,
+    precomputedDecision?: RoutingDecision,
   ) {
-    const routerRequest: RouterRequest = {
-      model: dto.model,
-      messages: dto.messages,
-      maxTokens: dto.max_tokens,
-      temperature: dto.temperature,
-      stream: dto.stream,
-      tenantId: ctx.tenantId,
-      xProvider,
-      xTag,
-    };
-    const decision = await this.routerService.resolve(
-      routerRequest,
-      ctx.tenantId,
-    );
+    const decision =
+      precomputedDecision ??
+      (await this.routerService.resolve(
+        {
+          model: dto.model,
+          messages: dto.messages,
+          maxTokens: dto.max_tokens,
+          temperature: dto.temperature,
+          stream: dto.stream,
+          tenantId: ctx.tenantId,
+          xProvider,
+          xTag,
+        } satisfies RouterRequest,
+        ctx.tenantId,
+      ));
     const apiKey = await this.providerConfigsRepo.getDecryptedApiKey(
       ctx.tenantId,
       decision.provider,
@@ -106,6 +109,7 @@ export class GatewayService {
     requestId: string,
     xProvider?: string,
     xTag?: string,
+    precomputedDecision?: RoutingDecision,
   ): Promise<GatewayCompleteResult> {
     const startMs = Date.now();
 
@@ -114,6 +118,7 @@ export class GatewayService {
       ctx,
       xProvider,
       xTag,
+      precomputedDecision,
     );
     const gatewayRequest = this.buildGatewayRequest(
       dto,
@@ -151,12 +156,14 @@ export class GatewayService {
     requestId: string,
     xProvider?: string,
     xTag?: string,
+    precomputedDecision?: RoutingDecision,
   ): Promise<void> {
     const { decision, apiKey, adapter } = await this.resolveAdapter(
       dto,
       ctx,
       xProvider,
       xTag,
+      precomputedDecision,
     );
 
     // Middleware already set X-Request-Id; set routing headers before flushHeaders()

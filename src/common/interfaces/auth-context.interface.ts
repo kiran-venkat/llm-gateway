@@ -1,4 +1,5 @@
 import { RateLimitResult } from './rate-limit-result.interface';
+import { RoutingDecision } from './routing-decision.interface';
 
 /**
  * Resolved and validated identity attached to every authenticated request.
@@ -22,6 +23,10 @@ declare global {
       requestId: string;
       /** Set by RateLimitGuard after RPM check passes; used for response headers in T27. */
       rateLimit?: RateLimitResult;
+      /** Set by CacheInterceptor after routing resolution; reused by GatewayService. */
+      routingDecision?: RoutingDecision;
+      /** Set by CacheInterceptor on cache miss; used by CacheJob in T31. */
+      cacheKey?: string;
     }
   }
 }
