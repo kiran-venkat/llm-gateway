@@ -69,17 +69,32 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const raw = exception.getResponse();
-      const message =
-        typeof raw === 'string'
-          ? raw
-          : ((raw as Record<string, unknown>)['message']?.toString() ??
-            exception.message);
+
+      if (typeof raw === 'object' && raw !== null) {
+        // Structured HttpException body: spread domain fields so guards like
+        // RateLimitGuard can include extra context (retry_after_ms, limit_type)
+        // without the filter discarding them.
+        const structured = raw as Record<string, unknown>;
+        const message =
+          structured['message']?.toString() ?? exception.message;
+        return {
+          status,
+          body: {
+            ...structured,
+            error: structured['error']?.toString() ?? this.statusToCode(status),
+            message,
+            request_id: requestId,
+            timestamp,
+            path,
+          } as ErrorResponse,
+        };
+      }
 
       return {
         status,
         body: {
           error: this.statusToCode(status),
-          message,
+          message: raw as string,
           request_id: requestId,
           timestamp,
           path,

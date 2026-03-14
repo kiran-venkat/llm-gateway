@@ -13,6 +13,7 @@ import {
 import { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { AuthGuard } from '../../common/guards/auth.guard';
+import { RateLimitGuard } from '../../common/guards/rate-limit.guard';
 import { TenantContext } from '../../common/decorators/tenant-context.decorator';
 import { AuthContext } from '../../common/interfaces/auth-context.interface';
 import { GatewayError } from '../../common/dto/gateway-error.dto';
@@ -48,7 +49,7 @@ function handleError(err: unknown, logger: Logger): never {
 }
 
 @Controller('v1/chat/completions')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RateLimitGuard)
 export class GatewayController {
   private readonly logger = new Logger(GatewayController.name);
 

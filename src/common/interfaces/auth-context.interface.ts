@@ -1,3 +1,5 @@
+import { RateLimitResult } from './rate-limit-result.interface';
+
 /**
  * Resolved and validated identity attached to every authenticated request.
  * Written by AuthGuard onto request.tenant; read by downstream
@@ -18,6 +20,8 @@ declare global {
       tenant?: AuthContext;
       /** Set by RequestIdMiddleware before any guard or handler runs. */
       requestId: string;
+      /** Set by RateLimitGuard after RPM check passes; used for response headers in T27. */
+      rateLimit?: RateLimitResult;
     }
   }
 }
