@@ -7,6 +7,7 @@ import { OpenAIAdapter } from './adapters/openai/openai.adapter';
 import { GeminiAdapter } from './adapters/gemini/gemini.adapter';
 import { ProviderConfigsRepository } from './provider-configs.repository';
 import { ProviderConfigsService } from './provider-configs.service';
+import { ProviderStatusService } from './provider-status.service';
 import { ProviderConfigsController } from './provider-configs.controller';
 
 @Module({
@@ -16,6 +17,7 @@ import { ProviderConfigsController } from './provider-configs.controller';
     AdapterRegistry,
     ProviderConfigsRepository,
     ProviderConfigsService,
+    ProviderStatusService,
   ],
   exports: [AdapterRegistry, ProviderConfigsRepository, ProviderConfigsService],
 })

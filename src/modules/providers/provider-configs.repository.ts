@@ -36,7 +36,10 @@ export class ProviderConfigsRepository extends BaseRepository<ProviderConfig> {
    * Used by adapters on every request — config is assumed to be cached
    * at the HTTP layer so this is not on the hot path.
    */
-  async getDecryptedApiKey(tenantId: string, provider: string): Promise<string> {
+  async getDecryptedApiKey(
+    tenantId: string,
+    provider: string,
+  ): Promise<string> {
     const cfg = await this.findByTenantAndProvider(tenantId, provider);
     if (!cfg) {
       throw new HttpException(

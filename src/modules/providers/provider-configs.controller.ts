@@ -13,12 +13,16 @@ import { AuthGuard } from '../../common/guards/auth.guard';
 import { TenantContext } from '../../common/decorators/tenant-context.decorator';
 import { AuthContext } from '../../common/interfaces/auth-context.interface';
 import { ProviderConfigsService } from './provider-configs.service';
+import { ProviderStatusService } from './provider-status.service';
 import { UpsertProviderConfigDto } from './dto/upsert-provider-config.dto';
 
 @Controller('api/v1/providers')
 @UseGuards(AuthGuard)
 export class ProviderConfigsController {
-  constructor(private readonly service: ProviderConfigsService) {}
+  constructor(
+    private readonly service: ProviderConfigsService,
+    private readonly statusService: ProviderStatusService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.OK)
@@ -32,6 +36,11 @@ export class ProviderConfigsController {
   @Get()
   async list(@TenantContext() ctx: AuthContext) {
     return this.service.list(ctx.tenantId);
+  }
+
+  @Get('status')
+  async status(@TenantContext() ctx: AuthContext) {
+    return this.statusService.getStatus(ctx.tenantId);
   }
 
   @Delete(':provider')
