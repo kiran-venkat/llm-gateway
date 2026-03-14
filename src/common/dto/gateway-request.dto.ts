@@ -4,6 +4,7 @@ export interface Message {
 }
 
 export interface GatewayRequest {
+  provider?: string;
   model: string;
   messages: Message[];
   maxTokens?: number;
