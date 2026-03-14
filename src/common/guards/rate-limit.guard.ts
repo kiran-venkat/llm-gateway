@@ -72,7 +72,18 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    // ── d. RPM check ──────────────────────────────────────────────────────────
+    // ── d. Estimate tokens (CPU-only — no Redis, before any Redis call) ──────────
+    // Pure arithmetic. Running this first ensures no Redis slot is consumed for
+    // a request that would have been rejected by TPM anyway (avoids phantom RPM
+    // decrements against a TPM-limited window).
+    let estimatedTokens: number | undefined;
+    if (this.adapterRegistry.has(provider)) {
+      estimatedTokens = this.adapterRegistry
+        .get(provider)
+        .estimateTokens(body.messages);
+    }
+
+    // ── e. RPM check (first Redis call — increments counter) ──────────────────
     const rpmResult = await this.rateLimitService.checkRpm(
       tenant.tenantId,
       provider,
@@ -91,15 +102,12 @@ export class RateLimitGuard implements CanActivate {
       );
     }
 
-    // ── e. TPM check ──────────────────────────────────────────────────────────
-    // Skip if the adapter is not registered (graceful degradation).
-    if (this.adapterRegistry.has(provider)) {
-      const adapter = this.adapterRegistry.get(provider);
-      const estimated = adapter.estimateTokens(body.messages);
+    // ── f. TPM check (second Redis call — uses pre-computed token estimate) ────
+    if (estimatedTokens !== undefined) {
       const tpmResult = await this.rateLimitService.checkTpm(
         tenant.tenantId,
         provider,
-        estimated,
+        estimatedTokens,
         config.rateLimitTpm,
       );
       if (!tpmResult.allowed) {
@@ -116,7 +124,7 @@ export class RateLimitGuard implements CanActivate {
       }
     }
 
-    // ── f. Attach RPM result for downstream header injection ──────────────────
+    // ── g. Attach RPM result for downstream header injection ───────────────────
     req.rateLimit = rpmResult;
 
     return true;

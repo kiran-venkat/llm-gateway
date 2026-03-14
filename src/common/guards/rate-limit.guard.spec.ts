@@ -45,6 +45,7 @@ function makeRateLimitResult(
   return {
     allowed: true,
     remaining: 59,
+    limit: 60,
     resetAt: new Date(Date.now() + 60_000),
     limitType: 'rpm',
     ...overrides,

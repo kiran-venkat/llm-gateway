@@ -104,6 +104,7 @@ export class RateLimitService implements OnModuleInit {
     return {
       allowed,
       remaining,
+      limit,
       resetAt,
       ...(allowed ? {} : { retryAfterMs: windowMs }),
       limitType: type,

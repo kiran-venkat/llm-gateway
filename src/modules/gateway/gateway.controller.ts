@@ -16,6 +16,7 @@ import { AuthGuard } from '../../common/guards/auth.guard';
 import { RateLimitGuard } from '../../common/guards/rate-limit.guard';
 import { TenantContext } from '../../common/decorators/tenant-context.decorator';
 import { AuthContext } from '../../common/interfaces/auth-context.interface';
+import { RateLimitResult } from '../../common/interfaces/rate-limit-result.interface';
 import { GatewayError } from '../../common/dto/gateway-error.dto';
 import { ProviderNotFoundError } from '../providers/registry/adapter.registry';
 import { GatewayService } from './gateway.service';
@@ -48,6 +49,24 @@ function handleError(err: unknown, logger: Logger): never {
   );
 }
 
+/**
+ * Attach X-RateLimit-* headers to the response from the rate limit result
+ * stored on the request by RateLimitGuard.  Called on both streaming and
+ * non-streaming paths before any bytes are written to the client.
+ */
+function applyRateLimitHeaders(
+  res: Response,
+  rateLimit?: RateLimitResult,
+): void {
+  if (!rateLimit) return;
+  res.setHeader('X-RateLimit-Limit-Rpm', rateLimit.limit);
+  res.setHeader('X-RateLimit-Remaining-Rpm', rateLimit.remaining);
+  res.setHeader(
+    'X-RateLimit-Reset',
+    Math.floor(rateLimit.resetAt.getTime() / 1000),
+  );
+}
+
 @Controller('v1/chat/completions')
 @UseGuards(AuthGuard, RateLimitGuard)
 export class GatewayController {
@@ -61,6 +80,8 @@ export class GatewayController {
    * Uses @Res() without passthrough so we control the response for both paths.
    * RequestIdMiddleware has already stamped req.requestId and X-Request-Id
    * on the response before this handler runs.
+   * RateLimitGuard has already attached req.rateLimit (if a provider config
+   * exists) which we echo as X-RateLimit-* headers on every successful response.
    */
   @Post()
   async chatCompletion(
@@ -76,6 +97,8 @@ export class GatewayController {
     // ── Streaming path ───────────────────────────────────────────────────────
     if (dto.stream) {
       res!.status(HttpStatus.OK);
+      // Rate-limit headers must be set before flushHeaders() inside completeStream.
+      applyRateLimitHeaders(res!, req.rateLimit);
       try {
         await this.gatewayService.completeStream(
           dto,
@@ -132,6 +155,7 @@ export class GatewayController {
     if (decision.ruleId) {
       res!.setHeader('X-Gateway-Rule-Id', decision.ruleId);
     }
+    applyRateLimitHeaders(res!, req.rateLimit);
     res!.json(payload);
   }
 }
