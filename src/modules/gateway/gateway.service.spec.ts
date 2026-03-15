@@ -109,6 +109,7 @@ describe('GatewayService', () => {
       mockConfigsRepo as unknown as ProviderConfigsRepository,
       mockStreamService as unknown as StreamService,
       mockUsageQueue as unknown as Queue,
+      { add: jest.fn().mockResolvedValue(undefined) } as unknown as Queue,
     );
   });
 

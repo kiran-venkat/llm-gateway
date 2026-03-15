@@ -9,6 +9,7 @@ import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { ProvidersModule } from './modules/providers/providers.module';
 import { GatewayModule } from './modules/gateway/gateway.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { GatewayModule } from './modules/gateway/gateway.module';
     ApiKeysModule,
     ProvidersModule,
     GatewayModule,
+    AnalyticsModule,
   ],
 })
 export class AppModule implements NestModule {

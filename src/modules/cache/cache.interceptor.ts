@@ -8,7 +8,7 @@ import {
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { Request, Response } from 'express';
-import { Observable, EMPTY } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { randomUUID } from 'crypto';
 import { CacheService } from './cache.service';
 import { buildCacheKey } from './cache-key.util';
@@ -101,6 +101,10 @@ export class CacheInterceptor implements NestInterceptor {
 
     if (cached) {
       this.logger.log(`Cache HIT key=${cacheKey} tenant=${tenant.tenantId}`);
+      void this.cacheService.incrementHit(
+        tenant.tenantId,
+        cached.promptTokens + cached.completionTokens,
+      );
 
       res.setHeader('X-Cache-Hit', 'true');
       res.setHeader('X-Cache-Type', 'exact');
@@ -147,11 +151,12 @@ export class CacheInterceptor implements NestInterceptor {
         },
       });
 
-      return EMPTY;
+      return of(null);
     }
 
     this.logger.log(`Cache MISS key=${cacheKey} tenant=${tenant.tenantId}`);
     res.setHeader('X-Cache-Hit', 'false');
+    void this.cacheService.incrementMiss(tenant.tenantId);
 
     return next.handle();
   }

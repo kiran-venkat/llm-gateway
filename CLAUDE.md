@@ -1,9 +1,9 @@
 # LLM Gateway — Project Index
 
 ## CURRENT STATE
-Last session ended: Phase 4 complete, T28 done
-Next task: T29
-Tests passing: 323
+Last session ended: Phase 5 complete (T29-T33 done)
+Next task: T34
+Tests passing: 376
 Build status: clean
 Active branch: dev
 
@@ -25,7 +25,7 @@ Request -> RequestIdMiddleware -> AuthGuard -> RateLimitGuard -> CacheIntercepto
 - Async tail: BullMQ for all DB writes after stream ends, never block hot path
 
 ## Current Phase
-Update this line at end of every session: "Completed T[X], next is T[X+1]"
+Completed T33, next is T34
 
 ## Reference Docs
 - Architecture + decisions: .claude/docs/architecture.md
@@ -76,7 +76,8 @@ Phase 1: COMPLETE (T07-T11)
 Phase 2: COMPLETE (T12-T18)
 Phase 3: COMPLETE (T19-T23)
 Phase 4: COMPLETE (T24-T28)
-Phase 5: IN PROGRESS — T29 next
+Phase 5: COMPLETE (T29-T33)
+Phase 6: IN PROGRESS — T34 next
 
 ---
 

@@ -71,6 +71,9 @@ function makeCacheService(
   return {
     get: jest.fn().mockResolvedValue(cached),
     set: jest.fn().mockResolvedValue(undefined),
+    incrementHit: jest.fn().mockResolvedValue(undefined),
+    incrementMiss: jest.fn().mockResolvedValue(undefined),
+    getStats: jest.fn(),
   } as unknown as jest.Mocked<CacheService>;
 }
 

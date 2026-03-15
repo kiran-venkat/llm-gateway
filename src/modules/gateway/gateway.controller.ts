@@ -111,6 +111,7 @@ export class GatewayController {
           xProvider,
           xTag,
           req.routingDecision,
+          req.cacheKey,
         );
       } catch (err: unknown) {
         handleError(err, this.logger);
@@ -128,6 +129,7 @@ export class GatewayController {
         xProvider,
         xTag,
         req.routingDecision,
+        req.cacheKey,
       );
     } catch (err: unknown) {
       handleError(err, this.logger);

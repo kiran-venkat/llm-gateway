@@ -11,6 +11,7 @@ import { AdapterRegistry } from '../providers/registry/adapter.registry';
 import { ProviderConfigsRepository } from '../providers/provider-configs.repository';
 import { StreamService } from '../stream/stream.service';
 import { ChatCompletionRequestDto } from './dto/chat-completion-request.dto';
+import { CacheJobData } from '../usage/jobs/cache.job';
 
 export interface UsageJobPayload {
   requestId: string;
@@ -44,6 +45,7 @@ export class GatewayService {
     private readonly providerConfigsRepo: ProviderConfigsRepository,
     private readonly streamService: StreamService,
     @InjectQueue('usage') private readonly usageQueue: Queue,
+    @InjectQueue('cache') private readonly cacheQueue: Queue,
   ) {}
 
   private async resolveAdapter(
@@ -103,6 +105,17 @@ export class GatewayService {
       );
   }
 
+  private enqueueCacheJob(data: CacheJobData): void {
+    void this.cacheQueue
+      .add('cache-response', data)
+      .catch((err: unknown) =>
+        this.logger.warn(
+          `Failed to enqueue cache job for key ${data.cacheKey}`,
+          err,
+        ),
+      );
+  }
+
   async complete(
     dto: ChatCompletionRequestDto,
     ctx: AuthContext,
@@ -110,6 +123,7 @@ export class GatewayService {
     xProvider?: string,
     xTag?: string,
     precomputedDecision?: RoutingDecision,
+    cacheKey?: string,
   ): Promise<GatewayCompleteResult> {
     const startMs = Date.now();
 
@@ -142,6 +156,19 @@ export class GatewayService {
       finishReason: response.finishReason,
     });
 
+    if (cacheKey) {
+      this.enqueueCacheJob({
+        cacheKey,
+        tenantId: ctx.tenantId,
+        provider: response.provider,
+        model: response.model,
+        content: response.content,
+        promptTokens: response.promptTokens,
+        completionTokens: response.completionTokens,
+        ttlSeconds: 3600,
+      });
+    }
+
     return { response, decision, requestId, durationMs };
   }
 
@@ -157,6 +184,7 @@ export class GatewayService {
     xProvider?: string,
     xTag?: string,
     precomputedDecision?: RoutingDecision,
+    cacheKey?: string,
   ): Promise<void> {
     const { decision, apiKey, adapter } = await this.resolveAdapter(
       dto,
@@ -199,6 +227,20 @@ export class GatewayService {
           finishReason: 'stop',
           stream: true,
         });
+
+        // stream:true bypasses the interceptor so cacheKey is typically undefined
+        if (cacheKey) {
+          this.enqueueCacheJob({
+            cacheKey,
+            tenantId: ctx.tenantId,
+            provider: decision.provider,
+            model: decision.model,
+            content: result.content,
+            promptTokens: 0,
+            completionTokens: result.chunkCount,
+            ttlSeconds: 3600,
+          });
+        }
       },
     });
   }
