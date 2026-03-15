@@ -75,7 +75,7 @@ Phase 1: COMPLETE (T07-T11)
 Phase 2: COMPLETE (T12-T18)
 Phase 3: COMPLETE (T19-T23)
 Phase 4: COMPLETE (T24-T28)
-Phase 5: IN PROGRESS — T32 next
+Phase 5: IN PROGRESS — T34 next
 
 ---
 
@@ -291,3 +291,18 @@ generated ID. The ID uses the format `gw-cached-{uuid}` so that logs,
 dashboards, and downstream systems can distinguish cache-served responses
 from live provider responses without inspecting headers. Live responses
 carry IDs from the provider (e.g. `chatcmpl-...` for OpenAI).
+
+### API response shapes: spec is the contract, implementation conforms to spec
+Date: Phase 5, T33
+Reason: Never update the spec to match a wrong implementation — fix the
+implementation. The spec defines the external contract that clients depend on.
+Renaming internal field names (e.g. hitRatePct → hit_rate) is a safe internal
+change; changing the spec would break clients silently.
+
+### Cost fields use raw floating point, not rounded to 4 decimal places
+Date: Phase 5, T33
+Reason: LLM costs are sub-cent. 4 decimal place rounding zeroes out small
+values (e.g. 24 tokens × $0.002/1K = $0.000048 rounds to $0.0000). All cost
+fields must preserve full precision — return the raw computed number and let
+JSON serialization handle precision naturally. Minimum effective precision
+is 8 decimal places for token-level cost granularity.

@@ -10,12 +10,12 @@ import { AuthContext } from '../../common/interfaces/auth-context.interface';
 const TENANT: AuthContext = { tenantId: 't1', apiKeyId: 'k1', plan: 'pro' };
 
 const STATS: CacheStats = {
-  hits: 42,
-  misses: 158,
-  total: 200,
-  hitRatePct: 21.0,
-  tokensSaved: 12500,
-  estimatedCostSavedUsd: 0.025,
+  total_hits: 42,
+  hit_rate: 0.21,
+  cost_saved_usd: 0.000025,
+  top_entries: [
+    { hash: 'abcdef1234567890', hit_count: 10, cost_saved: 0.000012 },
+  ],
 };
 
 function makeService(): jest.Mocked<AnalyticsService> {
@@ -49,12 +49,10 @@ describe('AnalyticsController', () => {
 
   it('returns zero stats when service returns all zeros', async () => {
     const empty: CacheStats = {
-      hits: 0,
-      misses: 0,
-      total: 0,
-      hitRatePct: 0,
-      tokensSaved: 0,
-      estimatedCostSavedUsd: 0,
+      total_hits: 0,
+      hit_rate: 0,
+      cost_saved_usd: 0,
+      top_entries: [],
     };
     service.getCacheStats.mockResolvedValue(empty);
     const result = await controller.getCacheStats(TENANT);

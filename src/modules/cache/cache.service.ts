@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import Redis from 'ioredis';
+import { PrismaService } from '../../prisma/prisma.service';
 
 export interface CachedResponse {
   content: string;
@@ -11,13 +12,17 @@ export interface CachedResponse {
   cachedAt: string; // ISO timestamp
 }
 
+export interface CacheTopEntry {
+  hash: string;       // first 16 chars of requestHash
+  hit_count: number;
+  cost_saved: number;
+}
+
 export interface CacheStats {
-  hits: number;
-  misses: number;
-  total: number;
-  hitRatePct: number;
-  tokensSaved: number;
-  estimatedCostSavedUsd: number;
+  total_hits: number;
+  hit_rate: number;         // 0-1 (e.g. 0.6 for 60%)
+  cost_saved_usd: number;
+  top_entries: CacheTopEntry[];
 }
 
 // Conservative average across providers: $0.002 per 1K tokens
@@ -27,7 +32,10 @@ const COST_PER_1K_TOKENS = 0.002;
 export class CacheService {
   private readonly logger = new Logger(CacheService.name);
 
-  constructor(@InjectRedis() private readonly redis: Redis) {}
+  constructor(
+    @InjectRedis() private readonly redis: Redis,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async get(key: string): Promise<CachedResponse | null> {
     try {
@@ -84,26 +92,26 @@ export class CacheService {
       const misses = parseInt(missesRaw ?? '0', 10);
       const tokensSaved = parseInt(savedRaw ?? '0', 10);
       const total = hits + misses;
-      return {
-        hits,
-        misses,
-        total,
-        hitRatePct: total > 0 ? Math.round((hits / total) * 1000) / 10 : 0,
-        tokensSaved,
-        estimatedCostSavedUsd:
-          Math.round((tokensSaved / 1000) * COST_PER_1K_TOKENS * 10000) /
-          10000,
-      };
+      const hit_rate = total > 0 ? hits / total : 0;
+      const cost_saved_usd = (tokensSaved / 1000) * COST_PER_1K_TOKENS;
+
+      const entries = await this.prisma.cacheEntry.findMany({
+        where: { tenantId },
+        orderBy: { hitCount: 'desc' },
+        take: 10,
+        select: { requestHash: true, hitCount: true, costSavedUsd: true },
+      });
+
+      const top_entries: CacheTopEntry[] = entries.map((e) => ({
+        hash: e.requestHash.slice(0, 16),
+        hit_count: e.hitCount,
+        cost_saved: Number(e.costSavedUsd),
+      }));
+
+      return { total_hits: hits, hit_rate, cost_saved_usd, top_entries };
     } catch (err: unknown) {
       this.logger.warn('Cache stats GET failed', err);
-      return {
-        hits: 0,
-        misses: 0,
-        total: 0,
-        hitRatePct: 0,
-        tokensSaved: 0,
-        estimatedCostSavedUsd: 0,
-      };
+      return { total_hits: 0, hit_rate: 0, cost_saved_usd: 0, top_entries: [] };
     }
   }
 }

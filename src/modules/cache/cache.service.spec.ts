@@ -27,6 +27,14 @@ function makeRedis() {
   };
 }
 
+function makePrisma(entries: { requestHash: string; hitCount: number; costSavedUsd: number }[] = []) {
+  return {
+    cacheEntry: {
+      findMany: jest.fn().mockResolvedValue(entries),
+    },
+  };
+}
+
 const TENANT = 'tenant-t1';
 const BASE = `tenant:${TENANT}:cache:stats`;
 
@@ -49,7 +57,7 @@ describe('CacheService — get/set', () => {
 
   beforeEach(() => {
     redis = makeRedis();
-    svc = new CacheService(redis as never);
+    svc = new CacheService(redis as never, makePrisma() as never);
   });
 
   it('returns null on cache miss', async () => {
@@ -83,7 +91,7 @@ describe('CacheService — stats increments', () => {
 
   beforeEach(() => {
     redis = makeRedis();
-    svc = new CacheService(redis as never);
+    svc = new CacheService(redis as never, makePrisma() as never);
   });
 
   it('increments hits counter', async () => {
@@ -118,52 +126,81 @@ describe('CacheService — stats increments', () => {
 
 describe('CacheService — getStats', () => {
   let redis: ReturnType<typeof makeRedis>;
+  let prisma: ReturnType<typeof makePrisma>;
   let svc: CacheService;
 
   beforeEach(() => {
     redis = makeRedis();
-    svc = new CacheService(redis as never);
+    prisma = makePrisma();
+    svc = new CacheService(redis as never, prisma as never);
   });
 
-  it('returns all zeros when no data exists', async () => {
+  it('returns all zeros and empty top_entries when no data exists', async () => {
     const stats = await svc.getStats(TENANT);
     expect(stats).toEqual({
-      hits: 0,
-      misses: 0,
-      total: 0,
-      hitRatePct: 0,
-      tokensSaved: 0,
-      estimatedCostSavedUsd: 0,
+      total_hits: 0,
+      hit_rate: 0,
+      cost_saved_usd: 0,
+      top_entries: [],
     });
   });
 
-  it('calculates hitRatePct correctly', async () => {
+  it('calculates hit_rate as 0-1 fraction', async () => {
     redis._store.set(`${BASE}:hits`, '3');
     redis._store.set(`${BASE}:misses`, '7');
     const stats = await svc.getStats(TENANT);
-    expect(stats.hits).toBe(3);
-    expect(stats.misses).toBe(7);
-    expect(stats.total).toBe(10);
-    expect(stats.hitRatePct).toBe(30);
+    expect(stats.total_hits).toBe(3);
+    expect(stats.hit_rate).toBeCloseTo(0.3, 10);
   });
 
-  it('computes estimatedCostSavedUsd from tokensSaved', async () => {
+  it('hit_rate is 0 when total is 0 (no division by zero)', async () => {
+    const stats = await svc.getStats(TENANT);
+    expect(stats.hit_rate).toBe(0);
+  });
+
+  it('computes cost_saved_usd without rounding small values to zero', async () => {
+    redis._store.set(`${BASE}:tokens_saved`, '24');
+    const stats = await svc.getStats(TENANT);
+    // 24 tokens × $0.002/1K = $0.000048
+    expect(stats.cost_saved_usd).toBeCloseTo(0.000048, 8);
+  });
+
+  it('computes cost_saved_usd for 1000 tokens correctly', async () => {
     redis._store.set(`${BASE}:tokens_saved`, '1000');
     const stats = await svc.getStats(TENANT);
-    // $0.002 per 1K tokens → 1000 tokens = $0.002
-    expect(stats.estimatedCostSavedUsd).toBe(0.002);
+    expect(stats.cost_saved_usd).toBeCloseTo(0.002, 8);
+  });
+
+  it('returns top_entries mapped from prisma with hash truncated to 16 chars', async () => {
+    prisma.cacheEntry.findMany.mockResolvedValue([
+      { requestHash: 'abcdef1234567890abcdef1234567890', hitCount: 5, costSavedUsd: 0.00024 },
+      { requestHash: 'deadbeefdeadbeefdeadbeefdeadbeef', hitCount: 2, costSavedUsd: 0.000096 },
+    ]);
+    const stats = await svc.getStats(TENANT);
+    expect(stats.top_entries).toEqual([
+      { hash: 'abcdef1234567890', hit_count: 5, cost_saved: 0.00024 },
+      { hash: 'deadbeefdeadbeef', hit_count: 2, cost_saved: 0.000096 },
+    ]);
+  });
+
+  it('queries prisma with correct tenant, ordering and limit', async () => {
+    await svc.getStats(TENANT);
+    expect(prisma.cacheEntry.findMany).toHaveBeenCalledWith({
+      where: { tenantId: TENANT },
+      orderBy: { hitCount: 'desc' },
+      take: 10,
+      select: { requestHash: true, hitCount: true, costSavedUsd: true },
+    });
   });
 
   it('returns zero-filled stats and does not throw when redis fails', async () => {
     redis.get.mockRejectedValue(new Error('redis unavailable'));
     const stats = await svc.getStats(TENANT);
     expect(stats).toEqual({
-      hits: 0,
-      misses: 0,
-      total: 0,
-      hitRatePct: 0,
-      tokensSaved: 0,
-      estimatedCostSavedUsd: 0,
+      total_hits: 0,
+      hit_rate: 0,
+      cost_saved_usd: 0,
+      top_entries: [],
     });
   });
 });
