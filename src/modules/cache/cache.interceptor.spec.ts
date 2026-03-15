@@ -233,8 +233,9 @@ describe('CacheInterceptor', () => {
       await Promise.resolve();
 
       expect(queue.add).toHaveBeenCalledWith(
-        'log-usage',
+        'track-usage',
         expect.objectContaining({ cacheHit: true, tenantId: TENANT.tenantId }),
+        expect.objectContaining({ attempts: 3 }),
       );
     });
   });

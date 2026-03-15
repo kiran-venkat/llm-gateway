@@ -5,6 +5,7 @@ import { RouterService } from '../router/router.service';
 import { AdapterRegistry } from '../providers/registry/adapter.registry';
 import { ProviderConfigsRepository } from '../providers/provider-configs.repository';
 import { StreamService } from '../stream/stream.service';
+import { CostCalculatorService } from '../usage/cost-calculator.service';
 import { AuthContext } from '../../common/interfaces/auth-context.interface';
 import { GatewayError } from '../../common/dto/gateway-error.dto';
 import { StreamChunk } from '../../common/dto/stream-chunk.dto';
@@ -103,6 +104,10 @@ describe('GatewayService', () => {
       }),
     };
 
+    const mockCostCalculator = {
+      calculateCost: jest.fn().mockResolvedValue(0.00005),
+    } as unknown as jest.Mocked<CostCalculatorService>;
+
     service = new GatewayService(
       mockRouterService as unknown as RouterService,
       mockRegistry as unknown as AdapterRegistry,
@@ -110,6 +115,7 @@ describe('GatewayService', () => {
       mockStreamService as unknown as StreamService,
       mockUsageQueue as unknown as Queue,
       { add: jest.fn().mockResolvedValue(undefined) } as unknown as Queue,
+      mockCostCalculator,
     );
   });
 
@@ -162,7 +168,7 @@ describe('GatewayService', () => {
     await new Promise(setImmediate);
 
     expect(mockUsageQueue.add).toHaveBeenCalledWith(
-      'log-usage',
+      'track-usage',
       expect.objectContaining({
         requestId: REQ_ID,
         tenantId: 'tenant-1',
@@ -170,8 +176,8 @@ describe('GatewayService', () => {
         model: 'claude-haiku-4-5-20251001',
         promptTokens: 10,
         completionTokens: 5,
-        totalTokens: 15,
       }),
+      expect.objectContaining({ attempts: 3 }),
     );
   });
 
@@ -211,8 +217,9 @@ describe('GatewayService', () => {
     await new Promise(setImmediate);
 
     expect(mockUsageQueue.add).toHaveBeenCalledWith(
-      'log-usage',
-      expect.objectContaining({ ruleId }),
+      'track-usage',
+      expect.objectContaining({ requestId: REQ_ID }),
+      expect.objectContaining({ attempts: 3 }),
     );
   });
 
@@ -286,13 +293,14 @@ describe('GatewayService', () => {
     await new Promise(setImmediate);
 
     expect(mockUsageQueue.add).toHaveBeenCalledWith(
-      'log-usage',
+      'track-usage',
       expect.objectContaining({
         requestId: REQ_ID,
         stream: true,
         tenantId: 'tenant-1',
         provider: 'anthropic',
       }),
+      expect.objectContaining({ attempts: 3 }),
     );
   });
 });

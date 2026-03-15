@@ -6,6 +6,7 @@ import { RouterService } from '../../router/router.service';
 import { AdapterRegistry } from '../../providers/registry/adapter.registry';
 import { ProviderConfigsRepository } from '../../providers/provider-configs.repository';
 import { StreamService } from '../../stream/stream.service';
+import { CostCalculatorService } from '../cost-calculator.service';
 import { GatewayResponse } from '../../../common/dto/gateway-response.dto';
 import { RoutingDecision } from '../../../common/interfaces/routing-decision.interface';
 import { AuthContext } from '../../../common/interfaces/auth-context.interface';
@@ -156,6 +157,10 @@ describe('GatewayService cache enqueue', () => {
       add: jest.fn().mockResolvedValue(undefined),
     };
 
+    const costCalculator = {
+      calculateCost: jest.fn().mockResolvedValue(0),
+    } as unknown as jest.Mocked<CostCalculatorService>;
+
     const svc = new GatewayService(
       routerService,
       registry,
@@ -163,6 +168,7 @@ describe('GatewayService cache enqueue', () => {
       streamService,
       usageQueue as never,
       cacheQueue as never,
+      costCalculator,
     );
 
     return { svc, cacheQueue, usageQueue };

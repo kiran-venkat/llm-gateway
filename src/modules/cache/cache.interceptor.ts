@@ -13,7 +13,7 @@ import { randomUUID } from 'crypto';
 import { CacheService } from './cache.service';
 import { buildCacheKey } from './cache-key.util';
 import { RouterService, RouterRequest } from '../router/router.service';
-import { UsageJobPayload } from '../gateway/gateway.service';
+import { UsageJobData } from '../usage/jobs/usage.job';
 
 @Injectable()
 export class CacheInterceptor implements NestInterceptor {
@@ -113,21 +113,28 @@ export class CacheInterceptor implements NestInterceptor {
       res.setHeader('X-Latency-Ms', '0');
 
       // Fire-and-forget usage job
-      const payload: UsageJobPayload = {
+      const payload: UsageJobData = {
         requestId: req.requestId,
         tenantId: tenant.tenantId,
+        apiKeyId: tenant.apiKeyId,
         provider: cached.provider,
         model: cached.model,
-        ruleId: decision.ruleId,
+        requestedModel: body.model ?? cached.model,
+        status: 'cached',
+        cacheHit: true,
+        cacheType: 'exact',
         promptTokens: cached.promptTokens,
         completionTokens: cached.completionTokens,
-        totalTokens: cached.promptTokens + cached.completionTokens,
-        durationMs: 0,
-        finishReason: 'stop',
-        cacheHit: true,
+        costUsd: 0,
+        latencyMs: 0,
+        stream: false,
+        createdAt: new Date().toISOString(),
       };
       void this.usageQueue
-        .add('log-usage', payload)
+        .add('track-usage', payload, {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 1000 },
+        })
         .catch((err: unknown) =>
           this.logger.warn('Failed to enqueue cache-hit usage job', err),
         );

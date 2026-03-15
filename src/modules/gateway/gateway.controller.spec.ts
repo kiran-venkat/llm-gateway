@@ -95,6 +95,7 @@ const COMPLETE_RESULT = {
   decision: mockDecision,
   requestId: 'req-test-001',
   durationMs: 123,
+  costUsd: 0.00005,
 };
 
 // ---------------------------------------------------------------------------

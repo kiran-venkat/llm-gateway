@@ -12,27 +12,15 @@ import { ProviderConfigsRepository } from '../providers/provider-configs.reposit
 import { StreamService } from '../stream/stream.service';
 import { ChatCompletionRequestDto } from './dto/chat-completion-request.dto';
 import { CacheJobData } from '../usage/jobs/cache.job';
-
-export interface UsageJobPayload {
-  requestId: string;
-  tenantId: string;
-  provider: string;
-  model: string;
-  ruleId?: string;
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-  durationMs: number;
-  finishReason: string;
-  stream?: boolean;
-  cacheHit?: boolean;
-}
+import { UsageJobData } from '../usage/jobs/usage.job';
+import { CostCalculatorService } from '../usage/cost-calculator.service';
 
 export interface GatewayCompleteResult {
   response: GatewayResponse;
   decision: RoutingDecision;
   requestId: string;
   durationMs: number;
+  costUsd: number;
 }
 
 @Injectable()
@@ -46,6 +34,7 @@ export class GatewayService {
     private readonly streamService: StreamService,
     @InjectQueue('usage') private readonly usageQueue: Queue,
     @InjectQueue('cache') private readonly cacheQueue: Queue,
+    private readonly costCalculator: CostCalculatorService,
   ) {}
 
   private async resolveAdapter(
@@ -94,12 +83,15 @@ export class GatewayService {
     };
   }
 
-  private enqueueUsageJob(payload: UsageJobPayload): void {
+  private enqueueUsageJob(data: UsageJobData): void {
     void this.usageQueue
-      .add('log-usage', payload)
+      .add('track-usage', data, {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 1000 },
+      })
       .catch((err: unknown) =>
         this.logger.error(
-          `Failed to enqueue usage job for request ${payload.requestId}`,
+          `Failed to enqueue usage job for request ${data.requestId}`,
           err,
         ),
       );
@@ -143,17 +135,31 @@ export class GatewayService {
     const response = await adapter.complete(gatewayRequest, apiKey);
     const durationMs = Date.now() - startMs;
 
+    // Calculate cost on the hot path so it's available for response headers.
+    // The UsageJob re-checks: if costUsd is 0 and status is 'success', it
+    // recalculates (safety net for unknown models or pricing cache miss).
+    const costUsd = await this.costCalculator.calculateCost(
+      response.provider,
+      response.model,
+      response.promptTokens,
+      response.completionTokens,
+    );
+
     this.enqueueUsageJob({
       requestId,
       tenantId: ctx.tenantId,
+      apiKeyId: ctx.apiKeyId,
       provider: decision.provider,
       model: decision.model,
-      ruleId: decision.ruleId,
+      requestedModel: dto.model,
+      status: 'success',
+      cacheHit: false,
       promptTokens: response.promptTokens,
       completionTokens: response.completionTokens,
-      totalTokens: response.totalTokens,
-      durationMs,
-      finishReason: response.finishReason,
+      costUsd,
+      latencyMs: durationMs,
+      stream: false,
+      createdAt: new Date().toISOString(),
     });
 
     if (cacheKey) {
@@ -169,12 +175,15 @@ export class GatewayService {
       });
     }
 
-    return { response, decision, requestId, durationMs };
+    return { response, decision, requestId, durationMs, costUsd };
   }
 
   /**
    * Streaming path — resolves provider, delegates to StreamService.proxy().
    * Does NOT return a value; response is ended inside proxy().
+   *
+   * Token counts are unavailable until the stream completes, so costUsd is
+   * set to 0 in the job payload and the UsageJob recalculates it.
    */
   async completeStream(
     dto: ChatCompletionRequestDto,
@@ -214,18 +223,23 @@ export class GatewayService {
       response,
       requestId,
       onComplete: (result) => {
+        // onComplete is synchronous — cost is calculated by UsageJob (costUsd=0 triggers it)
         this.enqueueUsageJob({
           requestId,
           tenantId: ctx.tenantId,
+          apiKeyId: ctx.apiKeyId,
           provider: decision.provider,
           model: decision.model,
-          ruleId: decision.ruleId,
+          requestedModel: dto.model,
+          status: 'success',
+          cacheHit: false,
           promptTokens: 0,
           completionTokens: result.chunkCount,
-          totalTokens: result.chunkCount,
-          durationMs: result.totalMs,
-          finishReason: 'stop',
+          costUsd: 0, // recalculated by UsageJob step 1
+          latencyMs: result.totalMs,
+          ttfbMs: result.firstChunkMs,
           stream: true,
+          createdAt: new Date().toISOString(),
         });
 
         // stream:true bypasses the interceptor so cacheKey is typically undefined
