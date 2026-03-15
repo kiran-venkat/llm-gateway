@@ -1,11 +1,10 @@
 # LLM Gateway — Project Index
 
 ## CURRENT STATE
-Last session ended: Phase 5 complete (T29-T33 done)
-Next task: T34
-Tests passing: 376
-Build status: clean
-Active branch: dev
+Last session ended: Phase 5 IN PROGRESS — T29, T30, T31 complete
+Next task: T32 (cache metadata headers) + T33 (cache stats endpoint)
+Tests: 363
+Branch: dev
 
 ## What We Are Building
 Production-grade API gateway between applications and LLM providers (OpenAI, Anthropic, Gemini).
@@ -25,7 +24,7 @@ Request -> RequestIdMiddleware -> AuthGuard -> RateLimitGuard -> CacheIntercepto
 - Async tail: BullMQ for all DB writes after stream ends, never block hot path
 
 ## Current Phase
-Completed T33, next is T34
+Update this line at end of every session: "Completed T[X], next is T[X+1]"
 
 ## Reference Docs
 - Architecture + decisions: .claude/docs/architecture.md
@@ -76,8 +75,7 @@ Phase 1: COMPLETE (T07-T11)
 Phase 2: COMPLETE (T12-T18)
 Phase 3: COMPLETE (T19-T23)
 Phase 4: COMPLETE (T24-T28)
-Phase 5: COMPLETE (T29-T33)
-Phase 6: IN PROGRESS — T34 next
+Phase 5: IN PROGRESS — T32 next
 
 ---
 
@@ -267,3 +265,29 @@ status code — the headers are already on the wire. A mid-stream provider
 error is therefore signalled as a structured SSE data event
 `{ error: true }` followed by [DONE], which clients can detect and surface
 as an error to the end user. This is the standard SSE error pattern.
+
+### Cache end-to-end verified: identical prompts return in 0ms from Redis
+Date: Phase 5, T31
+Reason: Live test confirmed the full cache loop: first request hits provider
+(~500ms), response stored in Redis via BullMQ CacheJob. Second identical
+request is intercepted before routing, served from Redis in <1ms.
+The ~2s window between miss and first possible hit is acceptable — BullMQ
+processes the CacheJob async after the response is already delivered to the
+client. No synchronous write on the hot path.
+
+### BullMQ CacheJob runs async — ~2s window where a repeated request is a miss
+Date: Phase 5, T31
+Reason: CacheJob is enqueued fire-and-forget after the provider response is
+delivered. BullMQ processes it within ~1-2s depending on worker load. During
+this window, a second identical request will be a cache miss. This is a
+deliberate trade-off: synchronous Redis write would add latency to every
+cacheable response. The window is narrow and the worst case is one extra
+provider call per burst, not correctness failure.
+
+### gw-cached- prefix on cached response IDs distinguishes hits from live responses
+Date: Phase 5, T30
+Reason: Cache hits fabricate an OpenAI-compatible response object with a
+generated ID. The ID uses the format `gw-cached-{uuid}` so that logs,
+dashboards, and downstream systems can distinguish cache-served responses
+from live provider responses without inspecting headers. Live responses
+carry IDs from the provider (e.g. `chatcmpl-...` for OpenAI).
