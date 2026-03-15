@@ -118,6 +118,48 @@ async function main() {
     console.log(`✓ Anthropic provider config already exists`);
   }
 
+  // 4. Model pricing (idempotent via upsert on provider+model+validFrom)
+  const PRICING_DATE = new Date('2024-01-01T00:00:00.000Z');
+
+  const pricingRows = [
+    // OpenAI
+    { provider: 'openai', model: 'gpt-4o', inputCostPer1kTokens: 0.0025, outputCostPer1kTokens: 0.01 },
+    { provider: 'openai', model: 'gpt-4o-mini', inputCostPer1kTokens: 0.00015, outputCostPer1kTokens: 0.0006 },
+    { provider: 'openai', model: 'o1', inputCostPer1kTokens: 0.015, outputCostPer1kTokens: 0.06 },
+    // Anthropic
+    { provider: 'anthropic', model: 'claude-3-5-sonnet-20241022', inputCostPer1kTokens: 0.003, outputCostPer1kTokens: 0.015 },
+    { provider: 'anthropic', model: 'claude-haiku-4-5-20251001', inputCostPer1kTokens: 0.0008, outputCostPer1kTokens: 0.004 },
+    { provider: 'anthropic', model: 'claude-3-5-haiku-20241022', inputCostPer1kTokens: 0.0008, outputCostPer1kTokens: 0.004 },
+    // Gemini
+    { provider: 'gemini', model: 'gemini-1.5-pro', inputCostPer1kTokens: 0.00125, outputCostPer1kTokens: 0.005 },
+    { provider: 'gemini', model: 'gemini-1.5-flash', inputCostPer1kTokens: 0.000075, outputCostPer1kTokens: 0.0003 },
+  ];
+
+  for (const row of pricingRows) {
+    await prisma.modelPricing.upsert({
+      where: {
+        provider_model_validFrom: {
+          provider: row.provider,
+          model: row.model,
+          validFrom: PRICING_DATE,
+        },
+      },
+      update: {
+        inputCostPer1kTokens: row.inputCostPer1kTokens,
+        outputCostPer1kTokens: row.outputCostPer1kTokens,
+      },
+      create: {
+        provider: row.provider,
+        model: row.model,
+        inputCostPer1kTokens: row.inputCostPer1kTokens,
+        outputCostPer1kTokens: row.outputCostPer1kTokens,
+        validFrom: PRICING_DATE,
+        validTo: null,
+      },
+    });
+  }
+  console.log(`✓ Model pricing seeded: ${pricingRows.length} rows`);
+
   console.log('\nSeed complete. Test with:');
   console.log(`  curl -X POST http://localhost:3000/v1/chat/completions \\`);
   console.log(`    -H 'Content-Type: application/json' \\`);
