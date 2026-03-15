@@ -1,9 +1,9 @@
 # LLM Gateway — Project Index
 
 ## CURRENT STATE
-Last session ended: Phase 5 IN PROGRESS — T29, T30, T31 complete
-Next task: T32 (cache metadata headers) + T33 (cache stats endpoint)
-Tests: 363
+Last session ended: Phase 5 COMPLETE — T29–T33 done
+Next task: T34 (Phase 6 start)
+Tests: 383
 Branch: dev
 
 ## What We Are Building
@@ -75,7 +75,8 @@ Phase 1: COMPLETE (T07-T11)
 Phase 2: COMPLETE (T12-T18)
 Phase 3: COMPLETE (T19-T23)
 Phase 4: COMPLETE (T24-T28)
-Phase 5: IN PROGRESS — T34 next
+Phase 5: COMPLETE (T29-T33)
+Phase 6: IN PROGRESS — T34 next
 
 ---
 
@@ -306,3 +307,18 @@ values (e.g. 24 tokens × $0.002/1K = $0.000048 rounds to $0.0000). All cost
 fields must preserve full precision — return the raw computed number and let
 JSON serialization handle precision naturally. Minimum effective precision
 is 8 decimal places for token-level cost granularity.
+
+### top_entries in cache stats is wired but empty until CacheJob writes to cache_entries
+Date: Phase 5, T33
+Reason: CacheService.getStats() queries cache_entries ordered by hitCount DESC
+limit 10. The query, interface, and Prisma call are all correct. top_entries
+returns [] because CacheJob currently only writes to Redis — it does not upsert
+into cache_entries. Populating this table is a future task. Do not remove the
+query or treat empty top_entries as a bug.
+
+### T32 (cache metadata headers) was already complete in T30
+Date: Phase 5, T32
+Reason: CacheInterceptor sets all required headers at the point of cache
+hit/miss decision: X-Cache-Hit (true/false), X-Cache-Type (exact),
+X-Gateway-Provider, X-Gateway-Model, X-Latency-Ms. These were implemented
+as part of T30 when the interceptor was built. T32 required no additional code.
