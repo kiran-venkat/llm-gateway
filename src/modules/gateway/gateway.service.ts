@@ -3,6 +3,7 @@ import { InjectQueue } from '@nestjs/bull';
 import { AppLoggerService } from '../../common/logger/app-logger.service';
 import { Queue } from 'bull';
 import { Response } from 'express';
+import { randomUUID } from 'crypto';
 import { AuthContext } from '../../common/interfaces/auth-context.interface';
 import { GatewayRequest } from '../../common/dto/gateway-request.dto';
 import { GatewayResponse } from '../../common/dto/gateway-response.dto';
@@ -111,6 +112,8 @@ export class GatewayService {
     xTag?: string,
     precomputedDecision?: RoutingDecision,
     cacheKey?: string,
+    sessionId?: string,
+    userLabel?: string,
   ): Promise<GatewayCompleteResult> {
     const startMs = Date.now();
 
@@ -155,6 +158,8 @@ export class GatewayService {
       latencyMs: durationMs,
       stream: false,
       createdAt: new Date().toISOString(),
+      sessionId: sessionId ?? randomUUID(),
+      userLabel,
     });
 
     this.logger.log('Request completed', {
@@ -201,6 +206,8 @@ export class GatewayService {
     xTag?: string,
     precomputedDecision?: RoutingDecision,
     cacheKey?: string,
+    sessionId?: string,
+    userLabel?: string,
   ): Promise<void> {
     const { decision, apiKey, adapter } = await this.resolveAdapter(
       dto,
@@ -247,6 +254,8 @@ export class GatewayService {
           ttfbMs: result.firstChunkMs,
           stream: true,
           createdAt: new Date().toISOString(),
+          sessionId: sessionId ?? randomUUID(),
+          userLabel,
         });
 
         // stream:true bypasses the interceptor so cacheKey is typically undefined

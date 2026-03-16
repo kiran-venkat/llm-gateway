@@ -113,6 +113,8 @@ export class GatewayController {
     @Req() req: Request,
     @Headers('x-provider') xProvider?: string,
     @Headers('x-tag') xTag?: string,
+    @Headers('x-session-id') xSessionId?: string,
+    @Headers('x-user-id') xUserLabel?: string,
     @Res() res?: Response,
   ): Promise<void> {
     const requestId = req.requestId;
@@ -132,6 +134,8 @@ export class GatewayController {
           xTag,
           req.routingDecision,
           req.cacheKey,
+          xSessionId,
+          xUserLabel,
         );
       } catch (err: unknown) {
         handleError(err, this.logger);
@@ -150,6 +154,8 @@ export class GatewayController {
         xTag,
         req.routingDecision,
         req.cacheKey,
+        xSessionId,
+        xUserLabel,
       );
     } catch (err: unknown) {
       handleError(err, this.logger);

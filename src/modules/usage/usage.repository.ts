@@ -53,6 +53,66 @@ export class UsageRepository {
    *   new_avg = (old_avg * old_count + new_value) / (old_count + 1)
    * Applied before the totalRequests increment so old_count is correct.
    */
+  /**
+   * Creates a RequestSpan row for session tracing.
+   * Must be called after createRequest() so the FK constraint on requestId is satisfied.
+   */
+  async createRequestSpan(data: {
+    sessionId: string;
+    tenantId: string;
+    requestId: string;
+    userLabel?: string;
+    parentRequestId?: string;
+  }): Promise<void> {
+    await this.prisma.requestSpan.create({
+      data: {
+        sessionId: data.sessionId,
+        tenantId: data.tenantId,
+        requestId: data.requestId,
+        userLabel: data.userLabel ?? null,
+        parentRequestId: data.parentRequestId ?? null,
+      },
+    });
+  }
+
+  /**
+   * Returns all (tenantId, provider, model) rows in usage_daily for a specific date.
+   * Used by DailyCloseJob to enumerate which Redis latency sorted sets to process.
+   */
+  async getUsageDailyRows(
+    date: string,
+  ): Promise<Array<{ tenantId: string; provider: string; model: string }>> {
+    return this.prisma.usageDaily.findMany({
+      where: { date: new Date(date) },
+      select: { tenantId: true, provider: true, model: true },
+    });
+  }
+
+  /**
+   * Updates p95LatencyMs and avgLatencyMs for a specific (tenantId, provider, model, date) row.
+   * Called by DailyCloseJob after computing exact percentiles from Redis sorted set samples.
+   */
+  async updateLatencyStats(
+    tenantId: string,
+    provider: string,
+    model: string,
+    date: string,
+    p95LatencyMs: number,
+    avgLatencyMs: number,
+  ): Promise<void> {
+    await this.prisma.usageDaily.update({
+      where: {
+        tenantId_provider_model_date: {
+          tenantId,
+          provider,
+          model,
+          date: new Date(date),
+        },
+      },
+      data: { p95LatencyMs, avgLatencyMs },
+    });
+  }
+
   async upsertDailyUsage(data: UsageJobData): Promise<void> {
     const date = new Date(data.createdAt).toISOString().split('T')[0]; // YYYY-MM-DD
     const rowId = randomUUID();

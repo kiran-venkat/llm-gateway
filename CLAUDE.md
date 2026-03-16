@@ -533,6 +533,16 @@ If headers were accessed inside the generator (after yield calls), they would
 still be readable, but capturing them upfront makes the contract clear: the
 caller gets both the stream handle and all headers in one await.
 
+### DailyCloseJob owns p95 computation, not UsageJob
+
+Date: Sprint S2, T62
+Reason: Computing p95 on every UsageJob write requires either
+a full ZRANGE over the daily latency sorted set (O(N)) or a
+streaming percentile structure. DailyCloseJob runs at 00:05 UTC,
+reads all latency samples for the previous day, computes exact
+p95, and upserts into usage_daily. Values are slightly stale
+intraday but exact after close. Acceptable for analytics use cases.
+
 ## Current Phase
 
 V1 COMPLETE (T01–T56). V2 IN PROGRESS.
@@ -550,7 +560,7 @@ Phase 7: COMPLETE (T39–T42)
 Phase 8: COMPLETE (T43–T50)
 Phase 9: COMPLETE (T51–T56)
 Sprint S1: COMPLETE (T57–T59) — V1 gap fixes
-Sprint S2: PLANNED (T60–T66) — Deep observability
+Sprint S2: IN PROGRESS (T60–T66) — Deep observability — T60 ✅, T61 ✅, T62 ✅
 Sprint S3: PLANNED (T67–T73) — Budget intelligence
 Sprint S4: PLANNED (T74–T81) — AI control plane
 Sprint S5: PLANNED (T82–T86) — Semantic cache
