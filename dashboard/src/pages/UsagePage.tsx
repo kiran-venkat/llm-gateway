@@ -180,7 +180,7 @@ export default function UsagePage() {
 
     getUsage({ start, end, granularity: 'day', provider: providerParam })
       .then((res) => {
-        if (!cancelled) setData(res.data.data)
+        if (!cancelled) setData(res.data.series)
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message)
