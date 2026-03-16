@@ -185,12 +185,26 @@ export const deleteProvider = (id: string) =>
 export const getProviderStatus = () =>
   api.get<ProviderStatus[]>('/api/v1/providers/status')
 
+// ---------- non-streaming completion ----------
+
+export const completeChat = (body: object) =>
+  api.post<{
+    id: string
+    choices: { message: { role: string; content: string } }[]
+    usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }
+  }>('/v1/chat/completions', body)
+
 // ---------- streaming ----------
 
-export async function* streamCompletion(
+export interface StreamResult {
+  stream: AsyncIterable<string>
+  headers: Record<string, string>
+}
+
+export async function streamCompletion(
   apiKey: string,
   body: object,
-): AsyncGenerator<string> {
+): Promise<StreamResult> {
   const res = await fetch(`${apiUrl}/v1/chat/completions`, {
     method: 'POST',
     headers: {
@@ -205,37 +219,47 @@ export async function* streamCompletion(
     throw new Error(`HTTP ${res.status}: ${text}`)
   }
 
-  const reader = res.body!.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
+  // Capture headers before consuming the body
+  const headers: Record<string, string> = {}
+  res.headers.forEach((value, key) => {
+    headers[key] = value
+  })
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
+  async function* generate(): AsyncGenerator<string> {
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
 
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
 
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      const data = line.slice(6).trim()
-      if (data === '[DONE]') return
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
 
-      try {
-        const chunk = JSON.parse(data) as {
-          choices?: { delta?: { content?: string }; error?: boolean }[]
-          error?: boolean
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const data = line.slice(6).trim()
+        if (data === '[DONE]') return
+
+        try {
+          const chunk = JSON.parse(data) as {
+            choices?: { delta?: { content?: string }; error?: boolean }[]
+            error?: boolean
+          }
+          if (chunk.error || chunk.choices?.[0]?.error) {
+            throw new Error('Stream error from provider')
+          }
+          const content = chunk.choices?.[0]?.delta?.content
+          if (content) yield content
+        } catch (e) {
+          if (e instanceof SyntaxError) continue
+          throw e
         }
-        if (chunk.error || chunk.choices?.[0]?.error) {
-          throw new Error('Stream error from provider')
-        }
-        const content = chunk.choices?.[0]?.delta?.content
-        if (content) yield content
-      } catch (e) {
-        if (e instanceof SyntaxError) continue
-        throw e
       }
     }
   }
+
+  return { stream: generate(), headers }
 }

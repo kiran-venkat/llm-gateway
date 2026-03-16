@@ -61,3 +61,13 @@
     -moz-osx-font-smoothing: grayscale;
   }
 }
+
+/* Streaming cursor — step-end snaps between fully visible and fully hidden,
+   matching the feel of a real terminal cursor rather than a fade */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.animate-cursor {
+  animation: cursor-blink 0.7s step-end infinite;
+}
