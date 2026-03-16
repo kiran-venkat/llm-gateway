@@ -1,8 +1,8 @@
 # LLM Gateway — Project Index
 
 ## CURRENT STATE
-Last session ended: Phase 6 IN PROGRESS — T34–T38 done
-Next task: T39
+Last session ended: Phase 6 COMPLETE — T34–T38 done
+Next task: T39 (Phase 7 start)
 Tests: 426
 Branch: dev
 
@@ -76,7 +76,8 @@ Phase 2: COMPLETE (T12-T18)
 Phase 3: COMPLETE (T19-T23)
 Phase 4: COMPLETE (T24-T28)
 Phase 5: COMPLETE (T29-T33)
-Phase 6: IN PROGRESS — T39 next (T34–T38 complete)
+Phase 6: COMPLETE (T34-T38)
+Phase 7: IN PROGRESS — T39 next
 
 ---
 
@@ -359,3 +360,24 @@ Reason: checkBudget must run after upsertDailyUsage so the current request's
 cost is already included in the usage_daily aggregate that the budget query reads.
 If checkBudget ran before upsertDailyUsage, the budget check would be off by one
 request and the exceeded flag might never be set for the triggering request.
+
+### Health endpoints require no auth — called by load balancers and orchestrators
+Date: Phase 6, T38
+Reason: Health probes originate from infrastructure (Kubernetes, ELB, Fly.io) that
+has no concept of tenant API keys. Requiring auth would make the probes fail when
+the auth subsystem itself is degraded — exactly the scenario readiness probes exist
+to detect. No AuthGuard on HealthController; this is intentional and correct.
+
+### GET /health/ready returns 503, not 200 with error body
+Date: Phase 6, T38
+Reason: Load balancers and orchestrators make routing decisions based on HTTP status
+codes, not JSON bodies. A 200 with { status: 'degraded' } would cause the LB to
+keep sending traffic to a broken instance. 503 SERVICE_UNAVAILABLE is the correct
+signal to stop routing. The JSON body is included in the 503 for human debugging only.
+
+### Health checks use Promise.allSettled — DB and Redis checked in parallel
+Date: Phase 6, T38
+Reason: DB and Redis are independent subsystems. Checking them sequentially would
+double probe latency when both are healthy, and a slow DB check would delay reporting
+a Redis failure (and vice versa). Promise.allSettled ensures both checks run
+concurrently and both results are always reported regardless of individual failures.
