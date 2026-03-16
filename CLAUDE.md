@@ -1,9 +1,9 @@
 # LLM Gateway — Project Index
 
 ## CURRENT STATE
-Last session ended: Phase 5 COMPLETE — T29–T33 done
-Next task: T34 (Phase 6 start)
-Tests: 383
+Last session ended: Phase 6 IN PROGRESS — T34–T38 done
+Next task: T39
+Tests: 426
 Branch: dev
 
 ## What We Are Building
@@ -76,7 +76,7 @@ Phase 2: COMPLETE (T12-T18)
 Phase 3: COMPLETE (T19-T23)
 Phase 4: COMPLETE (T24-T28)
 Phase 5: COMPLETE (T29-T33)
-Phase 6: IN PROGRESS — T34 next
+Phase 6: IN PROGRESS — T39 next (T34–T38 complete)
 
 ---
 
@@ -322,3 +322,40 @@ Reason: CacheInterceptor sets all required headers at the point of cache
 hit/miss decision: X-Cache-Hit (true/false), X-Cache-Type (exact),
 X-Gateway-Provider, X-Gateway-Model, X-Latency-Ms. These were implemented
 as part of T30 when the interceptor was built. T32 required no additional code.
+
+### Budget exceeded flag: Redis key TTL is the reset mechanism — no cron needed
+Date: Phase 6, T37
+Reason: When BudgetCheckerService detects exceeded status, UsageJob sets
+`tenant:{id}:budget:exceeded = '1'` with TTL = secondsUntilEndOfMonth().
+The key expires automatically at the start of the next billing month.
+No cron job, no scheduled task — the TTL IS the reset. secondsUntilEndOfMonth()
+uses new Date(year, month+1, 1) to find the next month boundary precisely.
+
+### Budget check in RateLimitGuard is after RPM, before TPM
+Date: Phase 6, T37
+Reason: RPM slot is consumed as a deliberate signal that the request was
+attempted. Budget check is read-only (Redis GET) and placed after RPM so
+the attempt is counted, but before TPM so no token weight is added for a
+request that will be rejected anyway. This ordering is intentional — do not
+move the budget check before checkRpm().
+
+### NULL monthlyBudgetUsd = no limit = always ok
+Date: Phase 6, T37
+Reason: If a tenant has no monthlyBudgetUsd configured, BudgetCheckerService
+returns { status: 'ok', pct: null } immediately without querying usage_daily.
+This is the default for all tenants until an admin sets a budget. pct: null
+signals "no limit" to callers. Do not treat null as 0 or as exceeded.
+
+### BudgetCheckerService aggregates usage_daily, not requests table
+Date: Phase 6, T37
+Reason: usage_daily has one row per tenant/provider/model/date with pre-summed
+totalCostUsd. A SUM over usage_daily for the current month is O(providers × models × days)
+— typically tens of rows. Querying the raw requests table would be O(total requests),
+potentially millions of rows. Always use usage_daily for budget calculations.
+
+### UsageJob sequence: createRequest → upsertDailyUsage → checkBudget
+Date: Phase 6, T35-T37
+Reason: checkBudget must run after upsertDailyUsage so the current request's
+cost is already included in the usage_daily aggregate that the budget query reads.
+If checkBudget ran before upsertDailyUsage, the budget check would be off by one
+request and the exceeded flag might never be set for the triggering request.
