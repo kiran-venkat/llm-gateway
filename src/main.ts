@@ -1,5 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { writeFileSync } from 'fs';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 
@@ -40,6 +42,36 @@ async function bootstrap() {
   const nodeEnv = process.env.NODE_ENV ?? 'production';
   app.useGlobalFilters(new GlobalExceptionFilter(nodeEnv));
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
+
+  // ── OpenAPI / Swagger ────────────────────────────────────────────────────────
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('LLM Gateway API')
+    .setDescription(
+      'Production-grade API gateway for OpenAI, Anthropic, and Gemini. ' +
+        'Handles routing, caching, rate limiting, and cost tracking.',
+    )
+    .setVersion('1.0')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'API Key' },
+      'api-key',
+    )
+    .addTag('Gateway', 'LLM inference endpoints')
+    .addTag('Analytics', 'Usage, cost, and cache statistics')
+    .addTag('API Keys', 'Key management')
+    .addTag('Providers', 'Provider configuration and status')
+    .addTag('Health', 'Liveness and readiness probes')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, document);
+
+  // Export spec as JSON for Postman import (non-production only).
+  // openapi.json is written synchronously before the server starts so it's
+  // always available at the project root after a dev boot.
+  if (nodeEnv !== 'production') {
+    writeFileSync('./openapi.json', JSON.stringify(document, null, 2));
+    logger.log('OpenAPI spec written to openapi.json');
+  }
 
   await app.listen(process.env.PORT ?? 3000);
 

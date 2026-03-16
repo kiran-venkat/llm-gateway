@@ -1,4 +1,5 @@
 import { Controller, Get, HttpException, HttpStatus } from '@nestjs/common';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import { Redis } from 'ioredis';
 import { PrismaService } from '../prisma/prisma.service';
@@ -15,6 +16,7 @@ interface ReadinessResponse {
   redis: CheckResult;
 }
 
+@ApiTags('Health')
 @Controller('health')
 export class HealthController {
   constructor(
@@ -22,11 +24,16 @@ export class HealthController {
     @InjectRedis() private readonly redis: Redis,
   ) {}
 
+  @ApiOperation({ summary: 'Liveness probe', description: 'Always returns 200. Confirms the process is running.' })
+  @ApiResponse({ status: 200, description: '{ status: "ok" }' })
   @Get()
   liveness(): { status: string } {
     return { status: 'ok' };
   }
 
+  @ApiOperation({ summary: 'Readiness probe', description: 'Checks DB and Redis connectivity in parallel. Returns 503 if either is unreachable.' })
+  @ApiResponse({ status: 200, description: 'All dependencies healthy' })
+  @ApiResponse({ status: 503, description: 'One or more dependencies unreachable' })
   @Get('ready')
   async readiness(): Promise<ReadinessResponse> {
     const [dbSettled, redisSettled] = await Promise.allSettled([
