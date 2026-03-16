@@ -43,6 +43,7 @@ function makeCacheService(): jest.Mocked<CacheService> {
   return {
     get: jest.fn().mockResolvedValue(null),
     set: jest.fn().mockResolvedValue(undefined),
+    upsertEntry: jest.fn().mockResolvedValue(undefined),
   } as unknown as jest.Mocked<CacheService>;
 }
 
@@ -91,6 +92,21 @@ describe('CacheJob', () => {
     const [, cached] = cacheService.set.mock.calls[0];
     expect(() => new Date(cached.cachedAt)).not.toThrow();
     expect(new Date(cached.cachedAt).toISOString()).toBe(cached.cachedAt);
+  });
+
+  it('calls cacheService.upsertEntry with requestHash extracted from cacheKey', async () => {
+    const data = makeJobData();
+    await job.handle(makeJob(data));
+
+    expect(cacheService.upsertEntry).toHaveBeenCalledWith({
+      tenantId: data.tenantId,
+      requestHash: 'abc123def456',
+      provider: data.provider,
+      model: data.model,
+      promptTokens: data.promptTokens,
+      completionTokens: data.completionTokens,
+      ttlSeconds: data.ttlSeconds,
+    });
   });
 
   it('does not rethrow when cacheService.set throws', async () => {

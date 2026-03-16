@@ -35,6 +35,16 @@ export class CacheJob {
 
     try {
       await this.cacheService.set(d.cacheKey, cached, d.ttlSeconds);
+      const requestHash = d.cacheKey.split(':cache:')[1] ?? d.cacheKey;
+      await this.cacheService.upsertEntry({
+        tenantId: d.tenantId,
+        requestHash,
+        provider: d.provider,
+        model: d.model,
+        promptTokens: d.promptTokens,
+        completionTokens: d.completionTokens,
+        ttlSeconds: d.ttlSeconds,
+      });
       this.logger.log(
         `Cached response key=${d.cacheKey} tenant=${d.tenantId} ttl=${d.ttlSeconds}s`,
       );

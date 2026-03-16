@@ -9,24 +9,28 @@ export class OpenAIAdapter implements IProviderAdapter {
   readonly name = 'openai';
 
   async complete(request: GatewayRequest, apiKey: string): Promise<GatewayResponse> {
-    const client = new OpenAI({ apiKey });
+    try {
+      const client = new OpenAI({ apiKey });
 
-    const resp = await client.chat.completions.create({
-      model: request.model,
-      messages: request.messages,
-      ...(request.maxTokens !== undefined && { max_tokens: request.maxTokens }),
-      ...(request.temperature !== undefined && { temperature: request.temperature }),
-    });
+      const resp = await client.chat.completions.create({
+        model: request.model,
+        messages: request.messages,
+        ...(request.maxTokens !== undefined && { max_tokens: request.maxTokens }),
+        ...(request.temperature !== undefined && { temperature: request.temperature }),
+      });
 
-    return {
-      content: resp.choices[0].message.content ?? '',
-      model: resp.model,
-      provider: 'openai',
-      promptTokens: resp.usage?.prompt_tokens ?? 0,
-      completionTokens: resp.usage?.completion_tokens ?? 0,
-      totalTokens: resp.usage?.total_tokens ?? 0,
-      finishReason: this.mapFinishReason(resp.choices[0].finish_reason),
-    };
+      return {
+        content: resp.choices[0].message.content ?? '',
+        model: resp.model,
+        provider: 'openai',
+        promptTokens: resp.usage?.prompt_tokens ?? 0,
+        completionTokens: resp.usage?.completion_tokens ?? 0,
+        totalTokens: resp.usage?.total_tokens ?? 0,
+        finishReason: this.mapFinishReason(resp.choices[0].finish_reason),
+      };
+    } catch (err: unknown) {
+      throw this.mapError(err);
+    }
   }
 
   async *completeStream(request: GatewayRequest, apiKey: string): AsyncIterable<StreamChunk> {

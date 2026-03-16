@@ -22,24 +22,28 @@ export class GeminiAdapter implements IProviderAdapter {
     request: GatewayRequest,
     apiKey: string,
   ): Promise<GatewayResponse> {
-    const genai = new GoogleGenerativeAI(apiKey);
-    const model = genai.getGenerativeModel({ model: request.model });
-    const geminiMessages = this.translateMessages(request.messages);
+    try {
+      const genai = new GoogleGenerativeAI(apiKey);
+      const model = genai.getGenerativeModel({ model: request.model });
+      const geminiMessages = this.translateMessages(request.messages);
 
-    const resp = await model.generateContent({ contents: geminiMessages });
+      const resp = await model.generateContent({ contents: geminiMessages });
 
-    const candidate = resp.response.candidates?.[0];
-    const content = candidate?.content?.parts?.[0]?.text ?? '';
+      const candidate = resp.response.candidates?.[0];
+      const content = candidate?.content?.parts?.[0]?.text ?? '';
 
-    return {
-      content,
-      model: request.model,
-      provider: 'gemini',
-      promptTokens: resp.response.usageMetadata?.promptTokenCount ?? 0,
-      completionTokens: resp.response.usageMetadata?.candidatesTokenCount ?? 0,
-      totalTokens: resp.response.usageMetadata?.totalTokenCount ?? 0,
-      finishReason: this.mapFinishReason(candidate?.finishReason),
-    };
+      return {
+        content,
+        model: request.model,
+        provider: 'gemini',
+        promptTokens: resp.response.usageMetadata?.promptTokenCount ?? 0,
+        completionTokens: resp.response.usageMetadata?.candidatesTokenCount ?? 0,
+        totalTokens: resp.response.usageMetadata?.totalTokenCount ?? 0,
+        finishReason: this.mapFinishReason(candidate?.finishReason),
+      };
+    } catch (err: unknown) {
+      throw this.mapError(err);
+    }
   }
 
   async *completeStream(

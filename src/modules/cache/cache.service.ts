@@ -80,6 +80,74 @@ export class CacheService {
     }
   }
 
+  async upsertEntry(params: {
+    tenantId: string;
+    requestHash: string;
+    provider: string;
+    model: string;
+    promptTokens: number;
+    completionTokens: number;
+    ttlSeconds: number;
+  }): Promise<void> {
+    try {
+      const expiresAt = new Date(Date.now() + params.ttlSeconds * 1000);
+      await this.prisma.cacheEntry.upsert({
+        where: {
+          tenantId_requestHash: {
+            tenantId: params.tenantId,
+            requestHash: params.requestHash,
+          },
+        },
+        create: {
+          tenantId: params.tenantId,
+          requestHash: params.requestHash,
+          provider: params.provider,
+          model: params.model,
+          promptTokens: params.promptTokens,
+          completionTokens: params.completionTokens,
+          ttlSeconds: params.ttlSeconds,
+          expiresAt,
+        },
+        update: {
+          provider: params.provider,
+          model: params.model,
+          promptTokens: params.promptTokens,
+          completionTokens: params.completionTokens,
+          ttlSeconds: params.ttlSeconds,
+          expiresAt,
+        },
+      });
+    } catch (err: unknown) {
+      this.logger.warn(
+        `Cache upsertEntry failed for hash=${params.requestHash}`,
+        err,
+      );
+    }
+  }
+
+  async recordHit(
+    tenantId: string,
+    requestHash: string,
+    tokensSaved: number,
+  ): Promise<void> {
+    try {
+      const costIncrement = (tokensSaved / 1000) * COST_PER_1K_TOKENS;
+      await this.prisma.cacheEntry.update({
+        where: { tenantId_requestHash: { tenantId, requestHash } },
+        data: {
+          hitCount: { increment: 1 },
+          lastHitAt: new Date(),
+          costSavedUsd: { increment: costIncrement },
+        },
+      });
+    } catch (err: unknown) {
+      this.logger.warn(
+        `Cache recordHit failed for hash=${requestHash}`,
+        err,
+      );
+    }
+  }
+
   async getStats(tenantId: string): Promise<CacheStats> {
     const base = `tenant:${tenantId}:cache:stats`;
     try {

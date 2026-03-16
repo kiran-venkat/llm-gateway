@@ -18,44 +18,48 @@ export class AnthropicAdapter implements IProviderAdapter {
     request: GatewayRequest,
     apiKey: string,
   ): Promise<GatewayResponse> {
-    const client = new Anthropic({ apiKey });
+    try {
+      const client = new Anthropic({ apiKey });
 
-    // .find() picks the FIRST system message (not the last) — intentional.
-    // Anthropic's API requires system content as a top-level param, not inside
-    // the messages array; all system messages are stripped from messages[].
-    const systemMessage = request.messages.find(
-      (m) => m.role === 'system',
-    )?.content;
-    const messages = request.messages
-      .filter((m) => m.role !== 'system')
-      .map((m) => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      }));
+      // .find() picks the FIRST system message (not the last) — intentional.
+      // Anthropic's API requires system content as a top-level param, not inside
+      // the messages array; all system messages are stripped from messages[].
+      const systemMessage = request.messages.find(
+        (m) => m.role === 'system',
+      )?.content;
+      const messages = request.messages
+        .filter((m) => m.role !== 'system')
+        .map((m) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        }));
 
-    const resp = await client.messages.create({
-      model: request.model,
-      // Anthropic requires max_tokens with no server-side default; 1024 is a
-      // conservative fallback to prevent runaway cost. Do not remove.
-      max_tokens: request.maxTokens ?? 1024,
-      ...(systemMessage !== undefined && { system: systemMessage }),
-      messages,
-    });
+      const resp = await client.messages.create({
+        model: request.model,
+        // Anthropic requires max_tokens with no server-side default; 1024 is a
+        // conservative fallback to prevent runaway cost. Do not remove.
+        max_tokens: request.maxTokens ?? 1024,
+        ...(systemMessage !== undefined && { system: systemMessage }),
+        messages,
+      });
 
-    const firstBlock = resp.content[0];
-    const content = firstBlock.type === 'text' ? firstBlock.text : '';
+      const firstBlock = resp.content[0];
+      const content = firstBlock.type === 'text' ? firstBlock.text : '';
 
-    const finishReason = this.mapStopReason(resp.stop_reason);
+      const finishReason = this.mapStopReason(resp.stop_reason);
 
-    return {
-      content,
-      model: resp.model,
-      provider: 'anthropic',
-      promptTokens: resp.usage.input_tokens,
-      completionTokens: resp.usage.output_tokens,
-      totalTokens: resp.usage.input_tokens + resp.usage.output_tokens,
-      finishReason,
-    };
+      return {
+        content,
+        model: resp.model,
+        provider: 'anthropic',
+        promptTokens: resp.usage.input_tokens,
+        completionTokens: resp.usage.output_tokens,
+        totalTokens: resp.usage.input_tokens + resp.usage.output_tokens,
+        finishReason,
+      };
+    } catch (err: unknown) {
+      throw this.mapError(err);
+    }
   }
 
   async *completeStream(

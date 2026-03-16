@@ -6,6 +6,7 @@ import { Response } from 'express';
 import { AuthContext } from '../../common/interfaces/auth-context.interface';
 import { GatewayRequest } from '../../common/dto/gateway-request.dto';
 import { GatewayResponse } from '../../common/dto/gateway-response.dto';
+import { isGatewayError } from '../../common/dto/gateway-error.dto';
 import { RoutingDecision } from '../../common/interfaces/routing-decision.interface';
 import { RouterService, RouterRequest } from '../router/router.service';
 import { AdapterRegistry } from '../providers/registry/adapter.registry';
@@ -95,6 +96,26 @@ export class GatewayService {
       );
   }
 
+  private async callWithRetry(
+    fn: () => Promise<GatewayResponse>,
+    requestId: string,
+  ): Promise<GatewayResponse> {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      if (isGatewayError(err) && err.retryable) {
+        this.logger.warn('Retrying retryable provider error after 500ms', {
+          requestId,
+          code: err.code,
+          provider: err.provider,
+        });
+        await new Promise<void>((resolve) => setTimeout(resolve, 500));
+        return await fn();
+      }
+      throw err;
+    }
+  }
+
   private enqueueCacheJob(data: CacheJobData): void {
     void this.cacheQueue
       .add('cache-response', data)
@@ -127,7 +148,10 @@ export class GatewayService {
       decision.model,
       false,
     );
-    const response = await adapter.complete(gatewayRequest, apiKey);
+    const response = await this.callWithRetry(
+      () => adapter.complete(gatewayRequest, apiKey),
+      requestId,
+    );
     const durationMs = Date.now() - startMs;
 
     // Calculate cost on the hot path so it's available for response headers.

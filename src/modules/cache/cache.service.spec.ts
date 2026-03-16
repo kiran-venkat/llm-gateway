@@ -31,6 +31,8 @@ function makePrisma(entries: { requestHash: string; hitCount: number; costSavedU
   return {
     cacheEntry: {
       findMany: jest.fn().mockResolvedValue(entries),
+      upsert: jest.fn().mockResolvedValue(undefined),
+      update: jest.fn().mockResolvedValue(undefined),
     },
   };
 }
@@ -202,5 +204,129 @@ describe('CacheService — getStats', () => {
       cost_saved_usd: 0,
       top_entries: [],
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// upsertEntry
+// ---------------------------------------------------------------------------
+
+describe('CacheService — upsertEntry', () => {
+  let prisma: ReturnType<typeof makePrisma>;
+  let svc: CacheService;
+
+  beforeEach(() => {
+    prisma = makePrisma();
+    svc = new CacheService(makeRedis() as never, prisma as never);
+  });
+
+  it('calls prisma.cacheEntry.upsert with correct create/update fields', async () => {
+    const params = {
+      tenantId: TENANT,
+      requestHash: 'abc123',
+      provider: 'openai',
+      model: 'gpt-4o',
+      promptTokens: 20,
+      completionTokens: 10,
+      ttlSeconds: 3600,
+    };
+
+    await svc.upsertEntry(params);
+
+    expect(prisma.cacheEntry.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { tenantId_requestHash: { tenantId: TENANT, requestHash: 'abc123' } },
+        create: expect.objectContaining({
+          tenantId: TENANT,
+          requestHash: 'abc123',
+          provider: 'openai',
+          model: 'gpt-4o',
+          promptTokens: 20,
+          completionTokens: 10,
+          ttlSeconds: 3600,
+          expiresAt: expect.any(Date),
+        }),
+        update: expect.objectContaining({
+          provider: 'openai',
+          model: 'gpt-4o',
+          ttlSeconds: 3600,
+          expiresAt: expect.any(Date),
+        }),
+      }),
+    );
+  });
+
+  it('sets expiresAt approximately ttlSeconds in the future', async () => {
+    const before = Date.now();
+    await svc.upsertEntry({
+      tenantId: TENANT,
+      requestHash: 'h1',
+      provider: 'openai',
+      model: 'gpt-4o',
+      promptTokens: 5,
+      completionTokens: 5,
+      ttlSeconds: 3600,
+    });
+    const after = Date.now();
+
+    const call = (prisma.cacheEntry.upsert as jest.Mock).mock.calls[0][0];
+    const expiresAt: Date = call.create.expiresAt;
+    expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + 3600 * 1000);
+    expect(expiresAt.getTime()).toBeLessThanOrEqual(after + 3600 * 1000);
+  });
+
+  it('does not throw when prisma.upsert rejects', async () => {
+    prisma.cacheEntry.upsert.mockRejectedValueOnce(new Error('db down'));
+    await expect(
+      svc.upsertEntry({
+        tenantId: TENANT,
+        requestHash: 'h1',
+        provider: 'openai',
+        model: 'gpt-4o',
+        promptTokens: 5,
+        completionTokens: 5,
+        ttlSeconds: 3600,
+      }),
+    ).resolves.toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// recordHit
+// ---------------------------------------------------------------------------
+
+describe('CacheService — recordHit', () => {
+  let prisma: ReturnType<typeof makePrisma>;
+  let svc: CacheService;
+
+  beforeEach(() => {
+    prisma = makePrisma();
+    svc = new CacheService(makeRedis() as never, prisma as never);
+  });
+
+  it('increments hitCount and sets lastHitAt', async () => {
+    await svc.recordHit(TENANT, 'abc123', 30);
+
+    expect(prisma.cacheEntry.update).toHaveBeenCalledWith({
+      where: { tenantId_requestHash: { tenantId: TENANT, requestHash: 'abc123' } },
+      data: {
+        hitCount: { increment: 1 },
+        lastHitAt: expect.any(Date),
+        costSavedUsd: { increment: expect.any(Number) },
+      },
+    });
+  });
+
+  it('increments costSavedUsd by tokensSaved × $0.002/1K', async () => {
+    await svc.recordHit(TENANT, 'abc123', 1000);
+
+    const call = (prisma.cacheEntry.update as jest.Mock).mock.calls[0][0];
+    // 1000 tokens × $0.002/1K = $0.002
+    expect(call.data.costSavedUsd.increment).toBeCloseTo(0.002, 8);
+  });
+
+  it('does not throw when prisma.update rejects', async () => {
+    prisma.cacheEntry.update.mockRejectedValueOnce(new Error('db down'));
+    await expect(svc.recordHit(TENANT, 'abc123', 10)).resolves.toBeUndefined();
   });
 });

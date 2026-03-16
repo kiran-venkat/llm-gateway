@@ -181,19 +181,85 @@ describe('GatewayService', () => {
     );
   });
 
-  it('propagates GatewayError thrown by adapter', async () => {
+  it('propagates non-retryable GatewayError immediately without retry', async () => {
     const err: GatewayError = {
-      code: 'rate_limit',
-      message: 'Too many requests',
+      code: 'auth_error',
+      message: 'Invalid API key',
       provider: 'anthropic',
-      retryable: true,
-      statusCode: 429,
+      retryable: false,
+      statusCode: 401,
     };
     mockAdapter.complete.mockRejectedValue(err);
 
     await expect(
       service.complete(makeDto(), makeCtx(), REQ_ID),
-    ).rejects.toMatchObject({ code: 'rate_limit', statusCode: 429 });
+    ).rejects.toMatchObject({ code: 'auth_error', statusCode: 401 });
+
+    // Non-retryable: adapter called exactly once
+    expect(mockAdapter.complete).toHaveBeenCalledTimes(1);
+  });
+
+  // ── Retry logic ──────────────────────────────────────────────────────────
+
+  describe('retry on retryable GatewayError', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    it('retries once after 500ms and succeeds on second attempt', async () => {
+      const err: GatewayError = {
+        code: 'rate_limit',
+        message: 'Too many requests',
+        provider: 'anthropic',
+        retryable: true,
+        statusCode: 429,
+      };
+      mockAdapter.complete
+        .mockRejectedValueOnce(err)
+        .mockResolvedValue(mockProviderResponse);
+
+      const promise = service.complete(makeDto(), makeCtx(), REQ_ID);
+      await jest.advanceTimersByTimeAsync(500);
+      const result = await promise;
+
+      expect(mockAdapter.complete).toHaveBeenCalledTimes(2);
+      expect(result.response.content).toBe('Hi there!');
+    });
+
+    it('propagates the error after both attempts fail on retryable error', async () => {
+      const err: GatewayError = {
+        code: 'provider_unavailable',
+        message: 'Service unavailable',
+        provider: 'anthropic',
+        retryable: true,
+        statusCode: 503,
+      };
+      mockAdapter.complete.mockRejectedValue(err);
+
+      // Attach .catch() before advancing timers to prevent unhandled rejection
+      const promise = service.complete(makeDto(), makeCtx(), REQ_ID);
+      const caught = promise.catch((e: unknown) => e);
+      await jest.advanceTimersByTimeAsync(500);
+      const result = await caught;
+
+      expect(result).toMatchObject({ code: 'provider_unavailable', statusCode: 503 });
+      expect(mockAdapter.complete).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not retry on non-retryable error (auth_error)', async () => {
+      const err: GatewayError = {
+        code: 'auth_error',
+        message: 'Invalid key',
+        provider: 'anthropic',
+        retryable: false,
+        statusCode: 401,
+      };
+      mockAdapter.complete.mockRejectedValue(err);
+
+      const promise = service.complete(makeDto(), makeCtx(), REQ_ID);
+      // No timer advancement needed — non-retryable throws immediately
+      await expect(promise).rejects.toMatchObject({ code: 'auth_error' });
+      expect(mockAdapter.complete).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('propagates ProviderNotFoundError thrown by registry', async () => {

@@ -105,10 +105,16 @@ export class CacheInterceptor implements NestInterceptor {
         tenantId: tenant.tenantId,
         cacheKey,
       });
-      void this.cacheService.incrementHit(
-        tenant.tenantId,
-        cached.promptTokens + cached.completionTokens,
-      );
+      const tokensSaved = cached.promptTokens + cached.completionTokens;
+      void this.cacheService.incrementHit(tenant.tenantId, tokensSaved);
+      const requestHash = cacheKey.split(':cache:')[1];
+      if (requestHash) {
+        void this.cacheService.recordHit(
+          tenant.tenantId,
+          requestHash,
+          tokensSaved,
+        );
+      }
 
       res.setHeader('X-Cache-Hit', 'true');
       res.setHeader('X-Cache-Type', 'exact');
