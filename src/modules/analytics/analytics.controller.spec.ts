@@ -1,9 +1,17 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { AnalyticsController } from './analytics.controller';
-import { AnalyticsService, UsageTimeSeriesResponse } from './analytics.service';
+import {
+  AnalyticsService,
+  CostBreakdownResponse,
+  RequestLogResponse,
+  UsageTimeSeriesResponse,
+} from './analytics.service';
 import { CacheStats } from '../cache/cache.service';
 import { AuthContext } from '../../common/interfaces/auth-context.interface';
 import { UsageQueryDto } from './dto/usage-query.dto';
+import { RequestsQueryDto } from './dto/requests-query.dto';
+import { CostQueryDto } from './dto/cost-query.dto';
+import { RequestLogRow } from './analytics.repository';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -35,10 +43,27 @@ const USAGE_RESPONSE: UsageTimeSeriesResponse = {
   series: [],
 };
 
+const REQUEST_LOG_RESPONSE: RequestLogResponse<RequestLogRow> = {
+  data: [],
+  total: 0,
+  page: 1,
+  limit: 50,
+  pages: 0,
+};
+
+const COST_RESPONSE: CostBreakdownResponse = {
+  period: { start: '2024-01-01', end: '2024-01-31' },
+  total_cost_usd: 1.0,
+  by_provider: [{ provider: 'openai', cost_usd: 1.0, requests: 100, pct: 100 }],
+  by_model: [{ model: 'gpt-4o', provider: 'openai', cost_usd: 1.0, requests: 100, pct: 100 }],
+};
+
 function makeService(): jest.Mocked<AnalyticsService> {
   return {
     getCacheStats: jest.fn().mockResolvedValue(STATS),
     getUsageTimeSeries: jest.fn().mockResolvedValue(USAGE_RESPONSE),
+    getRequestLog: jest.fn().mockResolvedValue(REQUEST_LOG_RESPONSE),
+    getCostBreakdown: jest.fn().mockResolvedValue(COST_RESPONSE),
   } as unknown as jest.Mocked<AnalyticsService>;
 }
 
@@ -118,5 +143,75 @@ describe('AnalyticsController — GET /analytics/usage', () => {
     await expect(
       controller.getUsageTimeSeries(TENANT, makeQuery({ start: '2024-01-31', end: '2024-01-01' })),
     ).rejects.toThrow(HttpException);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests — requests endpoint (T40)
+// ---------------------------------------------------------------------------
+
+describe('AnalyticsController — GET /analytics/requests', () => {
+  let controller: AnalyticsController;
+  let service: jest.Mocked<AnalyticsService>;
+
+  beforeEach(() => {
+    service = makeService();
+    controller = new AnalyticsController(service);
+  });
+
+  function makeRequestsQuery(overrides: Partial<RequestsQueryDto> = {}): RequestsQueryDto {
+    const dto = new RequestsQueryDto();
+    dto.page = 1;
+    dto.limit = 50;
+    Object.assign(dto, overrides);
+    return dto;
+  }
+
+  it('returns the paginated response from AnalyticsService', async () => {
+    const result = await controller.getRequestLog(TENANT, makeRequestsQuery());
+    expect(result).toEqual(REQUEST_LOG_RESPONSE);
+  });
+
+  it('passes tenantId and query to AnalyticsService.getRequestLog', async () => {
+    const query = makeRequestsQuery({ provider: 'openai', status: 'error' });
+    await controller.getRequestLog(TENANT, query);
+    expect(service.getRequestLog).toHaveBeenCalledWith(TENANT.tenantId, query);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests — cost endpoint (T41)
+// ---------------------------------------------------------------------------
+
+describe('AnalyticsController — GET /analytics/cost', () => {
+  let controller: AnalyticsController;
+  let service: jest.Mocked<AnalyticsService>;
+
+  beforeEach(() => {
+    service = makeService();
+    controller = new AnalyticsController(service);
+  });
+
+  function makeCostQuery(overrides: Partial<CostQueryDto> = {}): CostQueryDto {
+    const dto = new CostQueryDto();
+    dto.start = '2024-01-01';
+    dto.end = '2024-01-31';
+    Object.assign(dto, overrides);
+    return dto;
+  }
+
+  it('returns the cost breakdown from AnalyticsService', async () => {
+    const result = await controller.getCostBreakdown(TENANT, makeCostQuery());
+    expect(result).toEqual(COST_RESPONSE);
+  });
+
+  it('passes tenantId and query to AnalyticsService.getCostBreakdown', async () => {
+    const query = makeCostQuery();
+    await controller.getCostBreakdown(TENANT, query);
+    expect(service.getCostBreakdown).toHaveBeenCalledWith(TENANT.tenantId, query);
+  });
+
+  it('T42 confirmed: GET /analytics/cache is on AnalyticsController', () => {
+    expect(typeof controller.getCacheStats).toBe('function');
   });
 });

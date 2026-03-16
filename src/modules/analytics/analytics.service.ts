@@ -2,9 +2,18 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CacheService, CacheStats } from '../cache/cache.service';
 import {
   AnalyticsRepository,
+  CostByModelRow,
+  CostByProviderRow,
+  RequestLogRow,
   UsageTimeSeriesRow,
 } from './analytics.repository';
+import { CostQueryDto } from './dto/cost-query.dto';
+import { RequestsQueryDto } from './dto/requests-query.dto';
 import { UsageQueryDto } from './dto/usage-query.dto';
+
+// ---------------------------------------------------------------------------
+// T39 — Usage time series
+// ---------------------------------------------------------------------------
 
 export interface UsageTotals {
   requests: number;
@@ -23,6 +32,39 @@ export interface UsageTimeSeriesResponse {
   series: UsageTimeSeriesRow[];
 }
 
+// ---------------------------------------------------------------------------
+// T40 — Request log
+// ---------------------------------------------------------------------------
+
+export interface RequestLogResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
+// ---------------------------------------------------------------------------
+// T41 — Cost breakdown
+// ---------------------------------------------------------------------------
+
+export interface CostByProviderEntry extends CostByProviderRow {
+  pct: number;
+}
+
+export interface CostByModelEntry extends CostByModelRow {
+  pct: number;
+}
+
+export interface CostBreakdownResponse {
+  period: { start: string; end: string };
+  total_cost_usd: number;
+  by_provider: CostByProviderEntry[];
+  by_model: CostByModelEntry[];
+}
+
+// ---------------------------------------------------------------------------
+
 @Injectable()
 export class AnalyticsService {
   constructor(
@@ -30,9 +72,17 @@ export class AnalyticsService {
     private readonly analyticsRepository: AnalyticsRepository,
   ) {}
 
+  // -------------------------------------------------------------------------
+  // T33
+  // -------------------------------------------------------------------------
+
   async getCacheStats(tenantId: string): Promise<CacheStats> {
     return this.cacheService.getStats(tenantId);
   }
+
+  // -------------------------------------------------------------------------
+  // T39
+  // -------------------------------------------------------------------------
 
   async getUsageTimeSeries(
     tenantId: string,
@@ -55,12 +105,12 @@ export class AnalyticsService {
       model,
     });
 
-    const totals = this.computeTotals(series);
+    const totals = this.computeUsageTotals(series);
 
     return { period: { start, end }, granularity, totals, series };
   }
 
-  private computeTotals(series: UsageTimeSeriesRow[]): UsageTotals {
+  private computeUsageTotals(series: UsageTimeSeriesRow[]): UsageTotals {
     const base = series.reduce(
       (acc, row) => ({
         requests: acc.requests + row.requests,
@@ -68,7 +118,7 @@ export class AnalyticsService {
         cost_usd: acc.cost_usd + row.cost_usd,
         cache_hits: acc.cache_hits + row.cache_hits,
         errors: acc.errors + row.errors,
-        // Weighted latency sum — divided by total requests below
+        // Weighted latency accumulator — divided by total requests below
         latency_weight: acc.latency_weight + row.avg_latency_ms * row.requests,
       }),
       {
@@ -96,5 +146,66 @@ export class AnalyticsService {
       avg_latency_ms,
       errors: base.errors,
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // T40
+  // -------------------------------------------------------------------------
+
+  async getRequestLog(
+    tenantId: string,
+    query: RequestsQueryDto,
+  ): Promise<RequestLogResponse<RequestLogRow>> {
+    const [data, total] = await Promise.all([
+      this.analyticsRepository.getRequests(tenantId, query),
+      this.analyticsRepository.countRequests(tenantId, query),
+    ]);
+
+    const pages = Math.ceil(total / query.limit);
+
+    return { data, total, page: query.page, limit: query.limit, pages };
+  }
+
+  // -------------------------------------------------------------------------
+  // T41
+  // -------------------------------------------------------------------------
+
+  async getCostBreakdown(
+    tenantId: string,
+    query: CostQueryDto,
+  ): Promise<CostBreakdownResponse> {
+    const { start, end } = query;
+
+    if (new Date(start) > new Date(end)) {
+      throw new HttpException(
+        { error: 'invalid_date_range', message: 'start must not be after end' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Both GROUP BY queries run in parallel — neither depends on the other
+    const [byProviderRaw, byModelRaw] = await Promise.all([
+      this.analyticsRepository.getCostByProvider(tenantId, start, end),
+      this.analyticsRepository.getCostByModel(tenantId, start, end),
+    ]);
+
+    // total_cost_usd derived from by_provider rows (no third DB query)
+    const total_cost_usd = byProviderRaw.reduce(
+      (sum, r) => sum + r.cost_usd,
+      0,
+    );
+
+    // pct = this row's cost / total * 100; 0 when total is 0 (no division by zero)
+    const by_provider: CostByProviderEntry[] = byProviderRaw.map((r) => ({
+      ...r,
+      pct: total_cost_usd > 0 ? (r.cost_usd / total_cost_usd) * 100 : 0,
+    }));
+
+    const by_model: CostByModelEntry[] = byModelRaw.map((r) => ({
+      ...r,
+      pct: total_cost_usd > 0 ? (r.cost_usd / total_cost_usd) * 100 : 0,
+    }));
+
+    return { period: { start, end }, total_cost_usd, by_provider, by_model };
   }
 }

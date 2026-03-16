@@ -3,6 +3,8 @@ import { AuthGuard } from '../../common/guards/auth.guard';
 import { TenantContext } from '../../common/decorators/tenant-context.decorator';
 import { AuthContext } from '../../common/interfaces/auth-context.interface';
 import { AnalyticsService } from './analytics.service';
+import { CostQueryDto } from './dto/cost-query.dto';
+import { RequestsQueryDto } from './dto/requests-query.dto';
 import { UsageQueryDto } from './dto/usage-query.dto';
 
 @Controller('api/v1/analytics')
@@ -23,5 +25,21 @@ export class AnalyticsController {
     @Query() query: UsageQueryDto,
   ): Promise<ReturnType<AnalyticsService['getUsageTimeSeries']>> {
     return this.analyticsService.getUsageTimeSeries(ctx.tenantId, query);
+  }
+
+  @Get('requests')
+  async getRequestLog(
+    @TenantContext() ctx: AuthContext,
+    @Query() query: RequestsQueryDto,
+  ): Promise<ReturnType<AnalyticsService['getRequestLog']>> {
+    return this.analyticsService.getRequestLog(ctx.tenantId, query);
+  }
+
+  @Get('cost')
+  async getCostBreakdown(
+    @TenantContext() ctx: AuthContext,
+    @Query() query: CostQueryDto,
+  ): Promise<ReturnType<AnalyticsService['getCostBreakdown']>> {
+    return this.analyticsService.getCostBreakdown(ctx.tenantId, query);
   }
 }
