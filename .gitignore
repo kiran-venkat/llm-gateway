@@ -74,4 +74,4 @@ build/
 # Environment
 .env
 .env.local
-.env.*.local
+.env.*.localopenapi.json

@@ -95,7 +95,7 @@ function KeyRevealPanel({
       </div>
 
       <div className="text-xs text-slate-500">
-        Prefix: <span className="font-mono text-slate-300">{apiKey.prefix}</span>
+        Prefix: <span className="font-mono text-slate-300">{apiKey.key_prefix}</span>
       </div>
 
       <Button
@@ -216,7 +216,7 @@ function RevokeDialog({
         </DialogHeader>
         <p className="text-sm text-slate-400">
           Revoke key{' '}
-          <span className="font-mono text-slate-200">{apiKey.prefix}…</span>
+          <span className="font-mono text-slate-200">{apiKey.key_prefix}…</span>
           {apiKey.name && (
             <> ({apiKey.name})</>
           )}
@@ -338,18 +338,18 @@ export default function ApiKeysPage() {
                       {k.name ?? <span className="text-slate-600 italic">unnamed</span>}
                     </TableCell>
                     <TableCell className="font-mono text-xs text-slate-400">
-                      {k.prefix}…
+                      {k.key_prefix}…
                     </TableCell>
                     <TableCell className="text-slate-400 text-xs">
-                      {formatDate(k.createdAt)}
+                      {formatDate(k.created_at)}
                     </TableCell>
                     <TableCell className="text-slate-400 text-xs">
-                      {k.lastUsedAt ? formatDate(k.lastUsedAt) : (
+                      {k.last_used_at ? formatDate(k.last_used_at) : (
                         <span className="text-slate-600">Never</span>
                       )}
                     </TableCell>
                     <TableCell>
-                      {k.revokedAt ? (
+                      {!k.is_active ? (
                         <Badge className="bg-slate-700 text-slate-400 border border-slate-600 text-xs px-1.5 py-0">
                           Revoked
                         </Badge>
@@ -360,7 +360,7 @@ export default function ApiKeysPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {!k.revokedAt && (
+                      {k.is_active && (
                         <Button
                           variant="ghost"
                           size="sm"

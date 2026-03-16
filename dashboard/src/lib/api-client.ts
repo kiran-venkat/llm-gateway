@@ -40,21 +40,32 @@ export function clearStoredApiKey(): void {
 
 // ---------- response types ----------
 
+// Actual shape from GET /api/v1/analytics/usage
 export interface UsagePoint {
   date: string
   requests: number
-  prompt_tokens: number
-  completion_tokens: number
+  tokens: number
   cost_usd: number
-  avg_latency_ms: number
   cache_hits: number
+  errors: number
+  avg_latency_ms: number
+}
+
+export interface UsageTotals {
+  requests: number
+  tokens: number
+  cost_usd: number
+  cache_hits: number
+  cache_hit_rate: number
+  avg_latency_ms: number
+  errors: number
 }
 
 export interface UsageResponse {
-  data: UsagePoint[]
+  period: { start: string; end: string }
   granularity: string
-  start: string
-  end: string
+  totals: UsageTotals
+  series: UsagePoint[]
 }
 
 export interface CostByProvider {
@@ -66,21 +77,26 @@ export interface CostByProvider {
 export interface CostResponse {
   total_cost_usd: number
   by_provider: CostByProvider[]
-  start: string
-  end: string
+  period?: { start: string; end: string }
 }
 
+// Actual shape from GET /api/v1/analytics/requests — camelCase from Prisma
 export interface RequestEntry {
   id: string
   provider: string
   model: string
+  requestedModel: string
   status: string
-  prompt_tokens: number
-  completion_tokens: number
-  cost_usd: number
-  latency_ms: number
-  cache_hit: boolean
-  created_at: string
+  cacheHit: boolean
+  cacheType: string | null
+  promptTokens: number | null
+  completionTokens: number | null
+  costUsd: number | null
+  latencyMs: number | null
+  ttfbMs: number | null
+  errorCode: string | null
+  stream: boolean
+  createdAt: string
 }
 
 export interface RequestsResponse {
@@ -88,44 +104,54 @@ export interface RequestsResponse {
   total: number
   page: number
   limit: number
+  pages: number
 }
 
 export interface CacheStats {
-  hits: number
-  misses: number
-  total: number
+  total_hits: number
   hit_rate: number
-  tokens_saved: number
-  estimated_cost_saved_usd: number
-  top_entries: { key: string; hit_count: number }[]
+  cost_saved_usd: number
+  top_entries: { hash: string; hit_count: number; cost_saved: number }[]
 }
 
+// Actual shape from GET /api/v1/keys
 export interface ApiKey {
   id: string
   name: string | null
-  prefix: string
-  createdAt: string
-  lastUsedAt: string | null
-  revokedAt: string | null
+  key_prefix: string
+  is_active: boolean
+  last_used_at: string | null
+  expires_at: string | null
+  created_at: string
 }
 
 export interface ApiKeyCreated extends ApiKey {
   key: string
 }
 
+// Actual shape from GET /api/v1/providers
 export interface ProviderConfig {
   id: string
   provider: string
-  rateLimitRpm: number | null
-  rateLimitTpm: number | null
-  monthlySpendLimitUsd: number | null
-  createdAt: string
+  is_active: boolean
+  rate_limit_rpm: number | null
+  rate_limit_tpm: number | null
+  monthly_spend_limit_usd: number | null
+  created_at: string
 }
 
+// Actual shape from GET /api/v1/providers/status
 export interface ProviderStatus {
   provider: string
   status: 'active' | 'degraded' | 'down'
-  latency_ms: number | null
+  latencyMs: number
+  error?: string
+}
+
+export interface ProviderStatusResponse {
+  providers: ProviderStatus[]
+  cached: boolean
+  checkedAt: string
 }
 
 // ---------- analytics ----------

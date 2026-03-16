@@ -21,5 +21,7 @@
       "@common/*": ["src/common/*"],
       "@modules/*": ["src/modules/*"]
     }
-  }
+  },
+   "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "dashboard", "spikes", "test"]
 }

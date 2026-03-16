@@ -11,6 +11,13 @@ import {
   UseInterceptors,
   Headers,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { AuthGuard } from '../../common/guards/auth.guard';
@@ -69,6 +76,8 @@ function applyRateLimitHeaders(
   );
 }
 
+@ApiTags('Gateway')
+@ApiBearerAuth('api-key')
 @Controller('v1/chat/completions')
 @UseGuards(AuthGuard, RateLimitGuard)
 @UseInterceptors(CacheInterceptor)
@@ -86,6 +95,17 @@ export class GatewayController {
    * RateLimitGuard has already attached req.rateLimit (if a provider config
    * exists) which we echo as X-RateLimit-* headers on every successful response.
    */
+  @ApiOperation({
+    summary: 'Chat completion',
+    description:
+      'OpenAI-compatible chat completion endpoint. Routes to OpenAI, Anthropic, or Gemini ' +
+      'based on the model name. Supports streaming (SSE) and response caching.',
+  })
+  @ApiBody({ type: ChatCompletionRequestDto })
+  @ApiResponse({ status: 200, description: 'Successful completion or SSE stream' })
+  @ApiResponse({ status: 401, description: 'Invalid or missing API key' })
+  @ApiResponse({ status: 402, description: 'Monthly budget limit exceeded' })
+  @ApiResponse({ status: 429, description: 'Rate limit exceeded (RPM or TPM)' })
   @Post()
   async chatCompletion(
     @Body() dto: ChatCompletionRequestDto,

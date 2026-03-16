@@ -169,7 +169,7 @@ describe('UsageJob', () => {
     expect(usageRepo.upsertDailyUsage).not.toHaveBeenCalled();
   });
 
-  it('logs a warning when budget status is warning (80%+)', async () => {
+  it('does not set Redis key when budget status is warning (80%+)', async () => {
     budgetChecker = makeBudgetChecker('warning', 85);
     job = new UsageJob(
       usageRepo,
@@ -177,23 +177,15 @@ describe('UsageJob', () => {
       budgetChecker,
       mockRedis as unknown as Redis,
     );
-    const warnSpy = jest
-      .spyOn(
-        (job as unknown as { logger: { warn: jest.Mock } }).logger,
-        'warn',
-      )
-      .mockImplementation(() => undefined);
 
     await job.process(makeJob(makeJobData()));
 
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('85.0%'),
-    );
-    // No Redis key set for warnings
+    // Budget warn logging is now owned by BudgetCheckerService, not UsageJob.
+    // UsageJob only sets the Redis block key on exceeded — not on warning.
     expect(mockRedis.set).not.toHaveBeenCalled();
   });
 
-  it('logs an error and sets Redis budget:exceeded key when budget is exceeded', async () => {
+  it('sets Redis budget:exceeded key when budget is exceeded', async () => {
     budgetChecker = makeBudgetChecker('exceeded', 105);
     job = new UsageJob(
       usageRepo,
@@ -201,19 +193,12 @@ describe('UsageJob', () => {
       budgetChecker,
       mockRedis as unknown as Redis,
     );
-    const errorSpy = jest
-      .spyOn(
-        (job as unknown as { logger: { error: jest.Mock } }).logger,
-        'error',
-      )
-      .mockImplementation(() => undefined);
 
     const data = makeJobData();
     await job.process(makeJob(data));
 
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('EXCEEDED'),
-    );
+    // Budget error logging is now owned by BudgetCheckerService.
+    // UsageJob is responsible for setting the Redis block key.
     expect(mockRedis.set).toHaveBeenCalledWith(
       `tenant:${data.tenantId}:budget:exceeded`,
       '1',

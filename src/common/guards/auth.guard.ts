@@ -2,7 +2,6 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
-  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRedis } from '@nestjs-modules/ioredis';
@@ -16,10 +15,11 @@ import {
 } from '../constants/redis-keys';
 import { ApiKeysRepository } from '../../modules/api-keys/api-keys.repository';
 import { TenantsService } from '../../modules/tenants/tenants.service';
+import { AppLoggerService } from '../logger/app-logger.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  private readonly logger = new Logger(AuthGuard.name);
+  private readonly logger = new AppLoggerService(AuthGuard.name);
 
   constructor(
     @InjectRedis() private readonly redis: Redis,
@@ -46,18 +46,35 @@ export class AuthGuard implements CanActivate {
     const cached = await this.redis.get(cacheKey);
     if (cached) {
       req.tenant = JSON.parse(cached) as AuthContext;
+      const cachedCtx = req.tenant as AuthContext;
+      this.logger.log('Auth cache hit', {
+        requestId: req.requestId,
+        tenantId: cachedCtx.tenantId,
+      });
       return true;
     }
 
     // ── d. DB lookup ──────────────────────────────────────────────────────────
     const apiKey = await this.apiKeysRepo.findByKeyHash(keyHash);
     if (!apiKey) {
+      this.logger.warn('Auth failed', {
+        requestId: req.requestId,
+        reason: 'invalid_key',
+      });
       throw new UnauthorizedException('Invalid API key');
     }
     if (!apiKey.isActive) {
+      this.logger.warn('Auth failed', {
+        requestId: req.requestId,
+        reason: 'key_revoked',
+      });
       throw new UnauthorizedException('API key has been revoked');
     }
     if (apiKey.expiresAt !== null && apiKey.expiresAt < new Date()) {
+      this.logger.warn('Auth failed', {
+        requestId: req.requestId,
+        reason: 'key_expired',
+      });
       throw new UnauthorizedException('API key has expired');
     }
 
@@ -82,6 +99,12 @@ export class AuthGuard implements CanActivate {
       plan: tenantPlan,
     };
 
+    this.logger.log('Auth DB lookup', {
+      requestId: req.requestId,
+      tenantId: apiKey.tenantId,
+      apiKeyId: apiKey.id,
+    });
+
     // ── g. Populate Redis cache ───────────────────────────────────────────────
     await this.redis.set(
       cacheKey,
@@ -98,10 +121,7 @@ export class AuthGuard implements CanActivate {
     void this.apiKeysRepo
       .update(apiKey.tenantId, apiKey.id, { lastUsedAt: new Date() })
       .catch((err: unknown) =>
-        this.logger.error(
-          `Failed to update last_used_at for key ${apiKey.id}`,
-          err,
-        ),
+        this.logger.error('Failed to update last_used_at', err),
       );
 
     return true;

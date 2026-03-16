@@ -109,9 +109,9 @@ function EditDialog({
   const meta = KNOWN_PROVIDERS.find((p) => p.id === providerId)!
   const [form, setForm] = useState<EditForm>({
     apiKey: '',
-    rateLimitRpm: existing?.rateLimitRpm?.toString() ?? '',
-    rateLimitTpm: existing?.rateLimitTpm?.toString() ?? '',
-    monthlySpendLimit: existing?.monthlySpendLimitUsd?.toString() ?? '',
+    rateLimitRpm: existing?.rate_limit_rpm?.toString() ?? '',
+    rateLimitTpm: existing?.rate_limit_tpm?.toString() ?? '',
+    monthlySpendLimit: existing?.monthly_spend_limit_usd?.toString() ?? '',
   })
   const [saving, setSaving] = useState(false)
   const [removing, setRemoving] = useState(false)
@@ -319,9 +319,9 @@ function ProviderCard({
             <>
               <StatusDot status={liveStatus} />
               <StatusLabel status={liveStatus} />
-              {status?.latency_ms != null && (
+              {status?.latencyMs != null && (
                 <span className="text-xs text-slate-500 font-mono ml-1">
-                  {status.latency_ms}ms
+                  {status.latencyMs}ms
                 </span>
               )}
             </>
@@ -335,22 +335,22 @@ function ProviderCard({
         <div className="grid grid-cols-3 gap-2 text-xs">
           <div className="bg-slate-800 rounded-md p-2 text-center">
             <div className="font-mono font-semibold text-slate-100">
-              {config.rateLimitRpm ?? '∞'}
+              {config.rate_limit_rpm ?? '∞'}
             </div>
             <div className="text-slate-500 mt-0.5">RPM</div>
           </div>
           <div className="bg-slate-800 rounded-md p-2 text-center">
             <div className="font-mono font-semibold text-slate-100">
-              {config.rateLimitTpm != null
-                ? (config.rateLimitTpm / 1000).toFixed(0) + 'K'
+              {config.rate_limit_tpm != null
+                ? (config.rate_limit_tpm / 1000).toFixed(0) + 'K'
                 : '∞'}
             </div>
             <div className="text-slate-500 mt-0.5">TPM</div>
           </div>
           <div className="bg-slate-800 rounded-md p-2 text-center">
             <div className="font-mono font-semibold text-slate-100">
-              {config.monthlySpendLimitUsd != null
-                ? `$${config.monthlySpendLimitUsd}`
+              {config.monthly_spend_limit_usd != null
+                ? `$${config.monthly_spend_limit_usd}`
                 : '∞'}
             </div>
             <div className="text-slate-500 mt-0.5">Monthly</div>
@@ -412,7 +412,7 @@ export default function ProvidersPage() {
     if (!silent) setChecking(true)
     try {
       const res = await getProviderStatus()
-      setStatuses(res.data)
+      setStatuses(res.data.providers)
       setLastChecked(new Date())
     } catch {
       // status check failing is non-fatal — keep last known status

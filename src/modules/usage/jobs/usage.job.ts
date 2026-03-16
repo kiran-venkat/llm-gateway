@@ -1,6 +1,6 @@
 import { Process, Processor } from '@nestjs/bull';
-import { Logger } from '@nestjs/common';
 import { InjectRedis } from '@nestjs-modules/ioredis';
+import { AppLoggerService } from '../../../common/logger/app-logger.service';
 import { Job } from 'bull';
 import { Redis } from 'ioredis';
 import { UsageRepository } from '../usage.repository';
@@ -32,7 +32,7 @@ export interface UsageJobData {
 
 @Processor('usage')
 export class UsageJob {
-  private readonly logger = new Logger(UsageJob.name);
+  private readonly logger = new AppLoggerService(UsageJob.name);
 
   constructor(
     private readonly usageRepo: UsageRepository,
@@ -66,31 +66,24 @@ export class UsageJob {
     await this.usageRepo.upsertDailyUsage(data);
 
     // Step 4: Log completion
-    this.logger.log(
-      `Usage tracked: ${data.provider}/${data.model} ` +
-        `${data.promptTokens}+${data.completionTokens} tokens ` +
-        `$${data.costUsd.toFixed(8)}`,
-    );
+    this.logger.log('Usage tracked', {
+      requestId: data.requestId,
+      tenantId: data.tenantId,
+      provider: data.provider,
+      model: data.model,
+      tokens: data.promptTokens + data.completionTokens,
+      costUsd: data.costUsd,
+      latencyMs: data.latencyMs,
+    });
 
-    // Step 5: Budget check — log warn/error, set Redis block key when exceeded.
+    // Step 5: Budget check — BudgetCheckerService logs warn/error internally.
     // Fire after DB writes so the sum in usage_daily already includes this request.
     const budget = await this.budgetChecker.checkBudget(
       data.tenantId,
       data.costUsd,
     );
 
-    if (budget.status === 'warning') {
-      this.logger.warn(
-        `Tenant ${data.tenantId} at ${budget.pct!.toFixed(1)}% of monthly budget ` +
-          `($${budget.monthlySpend!.toFixed(4)} / $${budget.monthlyBudget})`,
-      );
-    }
-
     if (budget.status === 'exceeded') {
-      this.logger.error(
-        `Tenant ${data.tenantId} EXCEEDED monthly budget ` +
-          `($${budget.monthlySpend!.toFixed(4)} / $${budget.monthlyBudget})`,
-      );
       // Set a Redis flag that RateLimitGuard checks on every request.
       // TTL = seconds until end of current month so the block auto-lifts
       // at the start of the new billing period.

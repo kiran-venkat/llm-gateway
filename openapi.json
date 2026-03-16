@@ -1,0 +1,673 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/keys": {
+      "get": {
+        "description": "Returns all non-revoked keys for the tenant. Raw key values are never returned.",
+        "operationId": "ApiKeysController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List of API keys (hashed — raw value never returned after creation)"
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "List API keys",
+        "tags": [
+          "API Keys"
+        ]
+      },
+      "post": {
+        "description": "Generates a new API key. The raw key value is returned ONCE in this response only — it cannot be retrieved again.",
+        "operationId": "ApiKeysController_generate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Key created. Raw value in `key` field — save it now."
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Create API key",
+        "tags": [
+          "API Keys"
+        ]
+      }
+    },
+    "/api/v1/keys/{id}": {
+      "delete": {
+        "description": "Permanently revokes the key. In-flight requests using this key will receive 401 after Redis TTL expires.",
+        "operationId": "ApiKeysController_revoke",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "API key UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Key revoked"
+          },
+          "404": {
+            "description": "Key not found"
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Revoke API key",
+        "tags": [
+          "API Keys"
+        ]
+      }
+    },
+    "/api/v1/providers": {
+      "post": {
+        "description": "Upserts provider credentials and rate limits. The API key is encrypted with AES-256-GCM at rest.",
+        "operationId": "ProviderConfigsController_upsert",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertProviderConfigDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Provider config saved"
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Add or update provider",
+        "tags": [
+          "Providers"
+        ]
+      },
+      "get": {
+        "description": "Returns all configured providers. API keys are never returned.",
+        "operationId": "ProviderConfigsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List of configured providers"
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "List providers",
+        "tags": [
+          "Providers"
+        ]
+      }
+    },
+    "/api/v1/providers/status": {
+      "get": {
+        "description": "Probes each configured provider and returns latency/status. Results are cached 30s.",
+        "operationId": "ProviderConfigsController_status",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Per-provider status: active | degraded | down"
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Provider status",
+        "tags": [
+          "Providers"
+        ]
+      }
+    },
+    "/api/v1/providers/{provider}": {
+      "delete": {
+        "description": "Deletes the provider config and its encrypted API key.",
+        "operationId": "ProviderConfigsController_remove",
+        "parameters": [
+          {
+            "name": "provider",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "enum": [
+                "openai",
+                "anthropic",
+                "gemini"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Provider removed"
+          },
+          "404": {
+            "description": "Provider not found"
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Remove provider",
+        "tags": [
+          "Providers"
+        ]
+      }
+    },
+    "/v1/chat/completions": {
+      "post": {
+        "description": "OpenAI-compatible chat completion endpoint. Routes to OpenAI, Anthropic, or Gemini based on the model name. Supports streaming (SSE) and response caching.",
+        "operationId": "GatewayController_chatCompletion",
+        "parameters": [
+          {
+            "name": "x-provider",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-tag",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatCompletionRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful completion or SSE stream"
+          },
+          "401": {
+            "description": "Invalid or missing API key"
+          },
+          "402": {
+            "description": "Monthly budget limit exceeded"
+          },
+          "429": {
+            "description": "Rate limit exceeded (RPM or TPM)"
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Chat completion",
+        "tags": [
+          "Gateway"
+        ]
+      }
+    },
+    "/api/v1/analytics/cache": {
+      "get": {
+        "description": "Hit rate, miss count, and estimated cost savings from the response cache",
+        "operationId": "AnalyticsController_getCacheStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Cache stats for the authenticated tenant"
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Cache statistics",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/api/v1/analytics/usage": {
+      "get": {
+        "description": "Token usage and request counts grouped by day or hour",
+        "operationId": "AnalyticsController_getUsageTimeSeries",
+        "parameters": [
+          {
+            "name": "start",
+            "required": true,
+            "in": "query",
+            "description": "Start date (ISO 8601)",
+            "schema": {
+              "example": "2026-03-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "end",
+            "required": true,
+            "in": "query",
+            "description": "End date (ISO 8601)",
+            "schema": {
+              "example": "2026-03-31",
+              "type": "string"
+            }
+          },
+          {
+            "name": "granularity",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "day",
+                "hour"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "provider",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "openai",
+              "type": "string"
+            }
+          },
+          {
+            "name": "model",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "gpt-4o",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Time-series usage data"
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Usage time series",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/api/v1/analytics/requests": {
+      "get": {
+        "description": "Paginated log of all gateway requests with filters",
+        "operationId": "AnalyticsController_getRequestLog",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "example": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "provider",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "anthropic",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "success",
+                "error",
+                "cached",
+                "rate_limited"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "start",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-03-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "end",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-03-31",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated request log"
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Request log",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/api/v1/analytics/cost": {
+      "get": {
+        "description": "Total spend and per-provider cost breakdown for a date range",
+        "operationId": "AnalyticsController_getCostBreakdown",
+        "parameters": [
+          {
+            "name": "start",
+            "required": true,
+            "in": "query",
+            "description": "Start date (ISO 8601)",
+            "schema": {
+              "example": "2026-03-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "end",
+            "required": true,
+            "in": "query",
+            "description": "End date (ISO 8601)",
+            "schema": {
+              "example": "2026-03-31",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cost breakdown by provider"
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Cost breakdown",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Always returns 200. Confirms the process is running.",
+        "operationId": "HealthController_liveness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "{ status: \"ok\" }"
+          }
+        },
+        "summary": "Liveness probe",
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "description": "Checks DB and Redis connectivity in parallel. Returns 503 if either is unreachable.",
+        "operationId": "HealthController_readiness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "All dependencies healthy"
+          },
+          "503": {
+            "description": "One or more dependencies unreachable"
+          }
+        },
+        "summary": "Readiness probe",
+        "tags": [
+          "Health"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "LLM Gateway API",
+    "description": "Production-grade API gateway for OpenAI, Anthropic, and Gemini. Handles routing, caching, rate limiting, and cost tracking.",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "Gateway",
+      "description": "LLM inference endpoints"
+    },
+    {
+      "name": "Analytics",
+      "description": "Usage, cost, and cache statistics"
+    },
+    {
+      "name": "API Keys",
+      "description": "Key management"
+    },
+    {
+      "name": "Providers",
+      "description": "Provider configuration and status"
+    },
+    {
+      "name": "Health",
+      "description": "Liveness and readiness probes"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "api-key": {
+        "scheme": "bearer",
+        "bearerFormat": "API Key",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "CreateApiKeyDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Production key",
+            "maxLength": 255
+          },
+          "expires_at": {
+            "type": "string",
+            "example": "2027-01-01T00:00:00.000Z",
+            "description": "ISO 8601 expiry date. Omit for a non-expiring key."
+          }
+        }
+      },
+      "UpsertProviderConfigDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "example": "anthropic",
+            "enum": [
+              "openai",
+              "anthropic",
+              "gemini"
+            ]
+          },
+          "api_key": {
+            "type": "string",
+            "example": "sk-ant-api03-...",
+            "minLength": 10,
+            "description": "Provider API key — stored AES-256-GCM encrypted at rest"
+          },
+          "rate_limit_rpm": {
+            "type": "number",
+            "example": 60,
+            "minimum": 1,
+            "maximum": 10000,
+            "description": "Requests-per-minute limit for this tenant/provider pair"
+          },
+          "rate_limit_tpm": {
+            "type": "number",
+            "example": 100000,
+            "minimum": 1,
+            "description": "Tokens-per-minute limit for this tenant/provider pair"
+          },
+          "monthly_spend_limit_usd": {
+            "type": "number",
+            "example": 50,
+            "minimum": 0.01,
+            "description": "Monthly spend cap in USD. Requests are blocked once exceeded."
+          }
+        },
+        "required": [
+          "provider",
+          "api_key"
+        ]
+      },
+      "MessageDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "example": "user",
+            "enum": [
+              "system",
+              "user",
+              "assistant"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "example": "Hello, how can you help me today?"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ]
+      },
+      "ChatCompletionRequestDto": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "example": "claude-haiku-4-5-20251001",
+            "description": "Model identifier. The gateway auto-routes to the correct provider (openai, anthropic, gemini) based on the model name prefix."
+          },
+          "messages": {
+            "example": [
+              {
+                "role": "user",
+                "content": "Hello"
+              }
+            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageDto"
+            }
+          },
+          "max_tokens": {
+            "type": "number",
+            "example": 1024,
+            "minimum": 1
+          },
+          "temperature": {
+            "type": "number",
+            "example": 0.7,
+            "minimum": 0,
+            "maximum": 2
+          },
+          "stream": {
+            "type": "boolean",
+            "example": false,
+            "description": "Stream response as server-sent events (SSE)"
+          }
+        },
+        "required": [
+          "model",
+          "messages"
+        ]
+      }
+    }
+  }
+}

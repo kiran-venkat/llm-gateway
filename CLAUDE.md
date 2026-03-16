@@ -1,10 +1,9 @@
 # LLM Gateway — Project Index
 
 ## CURRENT STATE
-Last session ended: Phase 7 COMPLETE — T39–T42 done
-Next task: T43 (Phase 8 start)
-Tests: 457
-Branch: dev
+V1: COMPLETE — All phases T01–T56 done
+Tests: 474 passing, 3 skipped (live API integration tests)
+Branch: main
 
 ## What We Are Building
 Production-grade API gateway between applications and LLM providers (OpenAI, Anthropic, Gemini).
@@ -24,7 +23,7 @@ Request -> RequestIdMiddleware -> AuthGuard -> RateLimitGuard -> CacheIntercepto
 - Async tail: BullMQ for all DB writes after stream ends, never block hot path
 
 ## Current Phase
-Update this line at end of every session: "Completed T[X], next is T[X+1]"
+V1 COMPLETE. All phases done T01–T56.
 
 ## Reference Docs
 - Architecture + decisions: .claude/docs/architecture.md
@@ -78,7 +77,8 @@ Phase 4: COMPLETE (T24-T28)
 Phase 5: COMPLETE (T29-T33)
 Phase 6: COMPLETE (T34-T38)
 Phase 7: COMPLETE (T39-T42)
-Phase 8: IN PROGRESS — T43 next
+Phase 8: COMPLETE (T43-T50)
+Phase 9: COMPLETE (T51-T56)
 
 ---
 
@@ -437,3 +437,39 @@ Model-level cost breakdown is a future task requiring a new backend endpoint
 (e.g. GET /api/v1/analytics/cost/by-model) and a new repository query joining
 usage_daily grouped by (provider, model). Do not attempt to derive model costs
 from the existing cost endpoint — the data is not there.
+
+### Key reveal UX: dialog swaps to KeyRevealPanel without closing
+Date: Phase 8, T48
+Reason: After createKey() succeeds, the Dialog stays open but its content swaps from
+the name form to KeyRevealPanel. The raw key lives only in `createdKey` state. Once
+the user clicks "Done", createdKey is cleared and the key is gone from the UI forever —
+matching the backend which stores only the SHA-256 hash, never the raw value. Closing
+the dialog via the X button or backdrop also triggers handleClose(), which calls
+onCreated() to refresh the list. Never re-open or re-show the key after createdKey is null.
+
+### StatusDot: animate-ping on active status only — pulsing errors are distracting
+Date: Phase 8, T50
+Reason: Tailwind's animate-ping (scale + fade loop) signals a live/healthy state.
+Applying it to degraded or down would make error states look dynamic and draw the eye
+in a way that implies activity rather than failure. Static colored circles for
+degraded (yellow) and down (red) communicate severity without implying liveness.
+Only the active (green) dot pulses.
+
+### Dashboard polling: setInterval in useEffect, always clear on unmount
+Date: Phase 8, T47-T50
+Reason: Auto-refresh (RequestLogPage every 30s, ProvidersPage every 30s) uses
+setInterval inside useEffect. The cleanup function always calls clearInterval()
+to prevent the interval firing after the component unmounts — which would call
+setState on an unmounted component and leak memory. The `cancelled` flag pattern
+(for one-shot fetches) and clearInterval (for polling) serve the same purpose:
+prevent stale state updates after component teardown.
+
+### streamCompletion returns {stream, headers} — headers captured before body read
+Date: Phase 8, T44
+Reason: The Fetch API's Response.headers are available immediately after fetch()
+resolves (once the response status line + headers are received), but reading
+res.body starts consuming the stream. Headers must be captured into a plain
+Record<string,string> before the async generator begins iterating the body.
+If headers were accessed inside the generator (after yield calls), they would
+still be readable, but capturing them upfront makes the contract clear: the
+caller gets both the stream handle and all headers in one await.

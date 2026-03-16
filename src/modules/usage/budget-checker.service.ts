@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { AppLoggerService } from '../../common/logger/app-logger.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export interface BudgetStatus {
@@ -23,7 +24,7 @@ export function secondsUntilEndOfMonth(): number {
 
 @Injectable()
 export class BudgetCheckerService {
-  private readonly logger = new Logger(BudgetCheckerService.name);
+  private readonly logger = new AppLoggerService(BudgetCheckerService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -66,9 +67,11 @@ export class BudgetCheckerService {
 
     // Step 4: Return tiered status
     if (pct >= 100) {
+      this.logger.error('Budget exceeded', { tenantId, pct, monthlySpend });
       return { status: 'exceeded', pct, monthlySpend, monthlyBudget };
     }
     if (pct >= 80) {
+      this.logger.warn('Budget warning', { tenantId, pct, monthlySpend });
       return { status: 'warning', pct, monthlySpend, monthlyBudget };
     }
     return { status: 'ok', pct, monthlySpend, monthlyBudget };

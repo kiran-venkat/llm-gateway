@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build && find src -name '*.lua' | while read f; do dest=\"dist/${f}\"; mkdir -p \"$(dirname $dest)\"; cp \"$f\" \"$dest\"; done",
+    "build": "nest build && find src -name '*.lua' | while read f; do dest=\"dist/${f#src/}\"; mkdir -p \"$(dirname $dest)\"; cp \"$f\" \"$dest\"; done",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -28,6 +28,7 @@
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^10.0.0",
     "@nestjs/platform-express": "^10.0.0",
+    "@nestjs/swagger": "^8.1.1",
     "@prisma/client": "^6.19.2",
     "bull": "^4.16.5",
     "class-transformer": "^0.5.1",
@@ -37,7 +38,8 @@
     "minimatch": "^10.2.4",
     "openai": "^6.27.0",
     "reflect-metadata": "^0.2.0",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",

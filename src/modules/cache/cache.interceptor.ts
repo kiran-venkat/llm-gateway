@@ -2,10 +2,10 @@ import {
   CallHandler,
   ExecutionContext,
   Injectable,
-  Logger,
   NestInterceptor,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
+import { AppLoggerService } from '../../common/logger/app-logger.service';
 import { Queue } from 'bull';
 import { Request, Response } from 'express';
 import { Observable, of } from 'rxjs';
@@ -17,7 +17,7 @@ import { UsageJobData } from '../usage/jobs/usage.job';
 
 @Injectable()
 export class CacheInterceptor implements NestInterceptor {
-  private readonly logger = new Logger(CacheInterceptor.name);
+  private readonly logger = new AppLoggerService(CacheInterceptor.name);
 
   constructor(
     private readonly cacheService: CacheService,
@@ -74,7 +74,7 @@ export class CacheInterceptor implements NestInterceptor {
         tenant.tenantId,
       );
     } catch (err: unknown) {
-      this.logger.warn(
+      this.logger.error(
         'Router resolution failed in CacheInterceptor, skipping cache',
         err,
       );
@@ -100,7 +100,11 @@ export class CacheInterceptor implements NestInterceptor {
     const cached = await this.cacheService.get(cacheKey);
 
     if (cached) {
-      this.logger.log(`Cache HIT key=${cacheKey} tenant=${tenant.tenantId}`);
+      this.logger.log('Cache hit', {
+        requestId: req.requestId,
+        tenantId: tenant.tenantId,
+        cacheKey,
+      });
       void this.cacheService.incrementHit(
         tenant.tenantId,
         cached.promptTokens + cached.completionTokens,
@@ -136,7 +140,7 @@ export class CacheInterceptor implements NestInterceptor {
           backoff: { type: 'exponential', delay: 1000 },
         })
         .catch((err: unknown) =>
-          this.logger.warn('Failed to enqueue cache-hit usage job', err),
+          this.logger.error('Failed to enqueue cache-hit usage job', err),
         );
 
       res.status(200).json({
@@ -161,7 +165,11 @@ export class CacheInterceptor implements NestInterceptor {
       return of(null);
     }
 
-    this.logger.log(`Cache MISS key=${cacheKey} tenant=${tenant.tenantId}`);
+    this.logger.log('Cache miss', {
+      requestId: req.requestId,
+      tenantId: tenant.tenantId,
+      cacheKey,
+    });
     res.setHeader('X-Cache-Hit', 'false');
     void this.cacheService.incrementMiss(tenant.tenantId);
 

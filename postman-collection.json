@@ -1,0 +1,1880 @@
+{
+    "item": [
+        {
+            "name": "api",
+            "description": "",
+            "item": [
+                {
+                    "name": "v1",
+                    "description": "",
+                    "item": [
+                        {
+                            "name": "keys",
+                            "description": "",
+                            "item": [
+                                {
+                                    "id": "395b6f96-e82a-4e2a-ad65-460bd8a0a86f",
+                                    "name": "List API keys",
+                                    "request": {
+                                        "name": "List API keys",
+                                        "description": {
+                                            "content": "Returns all non-revoked keys for the tenant. Raw key values are never returned.",
+                                            "type": "text/plain"
+                                        },
+                                        "url": {
+                                            "path": [
+                                                "api",
+                                                "v1",
+                                                "keys"
+                                            ],
+                                            "host": [
+                                                "{{base_url}}"
+                                            ],
+                                            "query": [],
+                                            "variable": []
+                                        },
+                                        "method": "GET",
+                                        "body": {},
+                                        "auth": {
+                                            "type": "bearer",
+                                            "bearer": [
+                                                {
+                                                    "key": "token",
+                                                    "value": "{{api_key}}"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "response": [
+                                        {
+                                            "id": "c23920cb-a537-497d-9243-d017fe94721e",
+                                            "name": "List of API keys (hashed \u2014 raw value never returned after creation)",
+                                            "originalRequest": {
+                                                "url": {
+                                                    "path": [
+                                                        "api",
+                                                        "v1",
+                                                        "keys"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": []
+                                                },
+                                                "header": [
+                                                    {
+                                                        "description": {
+                                                            "content": "Added as a part of security scheme: bearer",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "Authorization",
+                                                        "value": "Bearer <token>"
+                                                    }
+                                                ],
+                                                "method": "GET",
+                                                "body": {}
+                                            },
+                                            "status": "OK",
+                                            "code": 200,
+                                            "header": [],
+                                            "cookie": [],
+                                            "_postman_previewlanguage": "text"
+                                        }
+                                    ],
+                                    "event": [],
+                                    "protocolProfileBehavior": {
+                                        "disableBodyPruning": true
+                                    }
+                                },
+                                {
+                                    "id": "09008a87-e7da-4191-9c71-1301ab99442d",
+                                    "name": "Create API key",
+                                    "request": {
+                                        "name": "Create API key",
+                                        "description": {
+                                            "content": "Generates a new API key. The raw key value is returned ONCE in this response only \u2014 it cannot be retrieved again.",
+                                            "type": "text/plain"
+                                        },
+                                        "url": {
+                                            "path": [
+                                                "api",
+                                                "v1",
+                                                "keys"
+                                            ],
+                                            "host": [
+                                                "{{base_url}}"
+                                            ],
+                                            "query": [],
+                                            "variable": []
+                                        },
+                                        "header": [
+                                            {
+                                                "key": "Content-Type",
+                                                "value": "application/json"
+                                            }
+                                        ],
+                                        "method": "POST",
+                                        "body": {
+                                            "mode": "raw",
+                                            "raw": "{\n  \"name\": \"<string>\",\n  \"expires_at\": \"<string>\"\n}",
+                                            "options": {
+                                                "raw": {
+                                                    "headerFamily": "json",
+                                                    "language": "json"
+                                                }
+                                            }
+                                        },
+                                        "auth": {
+                                            "type": "bearer",
+                                            "bearer": [
+                                                {
+                                                    "key": "token",
+                                                    "value": "{{api_key}}"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "response": [
+                                        {
+                                            "id": "d5b8c6f8-607c-4316-888b-646517552c95",
+                                            "name": "Key created. Raw value in `key` field \u2014 save it now.",
+                                            "originalRequest": {
+                                                "url": {
+                                                    "path": [
+                                                        "api",
+                                                        "v1",
+                                                        "keys"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": []
+                                                },
+                                                "header": [
+                                                    {
+                                                        "key": "Content-Type",
+                                                        "value": "application/json"
+                                                    },
+                                                    {
+                                                        "description": {
+                                                            "content": "Added as a part of security scheme: bearer",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "Authorization",
+                                                        "value": "Bearer <token>"
+                                                    }
+                                                ],
+                                                "method": "POST",
+                                                "body": {
+                                                    "mode": "raw",
+                                                    "raw": "{\n  \"name\": \"<string>\",\n  \"expires_at\": \"<string>\"\n}",
+                                                    "options": {
+                                                        "raw": {
+                                                            "headerFamily": "json",
+                                                            "language": "json"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "status": "Created",
+                                            "code": 201,
+                                            "header": [],
+                                            "cookie": [],
+                                            "_postman_previewlanguage": "text"
+                                        }
+                                    ],
+                                    "event": [],
+                                    "protocolProfileBehavior": {
+                                        "disableBodyPruning": true
+                                    }
+                                },
+                                {
+                                    "name": "{id}",
+                                    "description": "",
+                                    "item": [
+                                        {
+                                            "id": "2848aad9-f345-4e8d-ae0e-c29168d24c4e",
+                                            "name": "Revoke API key",
+                                            "request": {
+                                                "name": "Revoke API key",
+                                                "description": {
+                                                    "content": "Permanently revokes the key. In-flight requests using this key will receive 401 after Redis TTL expires.",
+                                                    "type": "text/plain"
+                                                },
+                                                "url": {
+                                                    "path": [
+                                                        "api",
+                                                        "v1",
+                                                        "keys",
+                                                        ":id"
+                                                    ],
+                                                    "host": [
+                                                        "{{base_url}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": [
+                                                        {
+                                                            "type": "any",
+                                                            "value": "<string>",
+                                                            "key": "id",
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required) API key UUID",
+                                                                "type": "text/plain"
+                                                            }
+                                                        }
+                                                    ]
+                                                },
+                                                "method": "DELETE",
+                                                "body": {},
+                                                "auth": {
+                                                    "type": "bearer",
+                                                    "bearer": [
+                                                        {
+                                                            "key": "token",
+                                                            "value": "{{api_key}}"
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "response": [
+                                                {
+                                                    "id": "2163760e-5513-4bc5-9c26-6ad5464177ca",
+                                                    "name": "Key revoked",
+                                                    "originalRequest": {
+                                                        "url": {
+                                                            "path": [
+                                                                "api",
+                                                                "v1",
+                                                                "keys",
+                                                                ":id"
+                                                            ],
+                                                            "host": [
+                                                                "{{baseUrl}}"
+                                                            ],
+                                                            "query": [],
+                                                            "variable": [
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "(Required) API key UUID",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "type": "any",
+                                                                    "value": "<string>",
+                                                                    "key": "id"
+                                                                }
+                                                            ]
+                                                        },
+                                                        "header": [
+                                                            {
+                                                                "description": {
+                                                                    "content": "Added as a part of security scheme: bearer",
+                                                                    "type": "text/plain"
+                                                                },
+                                                                "key": "Authorization",
+                                                                "value": "Bearer <token>"
+                                                            }
+                                                        ],
+                                                        "method": "DELETE",
+                                                        "body": {}
+                                                    },
+                                                    "status": "No Content",
+                                                    "code": 204,
+                                                    "header": [],
+                                                    "cookie": [],
+                                                    "_postman_previewlanguage": "text"
+                                                },
+                                                {
+                                                    "id": "dbd9b482-8ada-4bbc-bb23-8080fddad4bf",
+                                                    "name": "Key not found",
+                                                    "originalRequest": {
+                                                        "url": {
+                                                            "path": [
+                                                                "api",
+                                                                "v1",
+                                                                "keys",
+                                                                ":id"
+                                                            ],
+                                                            "host": [
+                                                                "{{baseUrl}}"
+                                                            ],
+                                                            "query": [],
+                                                            "variable": [
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "(Required) API key UUID",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "type": "any",
+                                                                    "value": "<string>",
+                                                                    "key": "id"
+                                                                }
+                                                            ]
+                                                        },
+                                                        "header": [
+                                                            {
+                                                                "description": {
+                                                                    "content": "Added as a part of security scheme: bearer",
+                                                                    "type": "text/plain"
+                                                                },
+                                                                "key": "Authorization",
+                                                                "value": "Bearer <token>"
+                                                            }
+                                                        ],
+                                                        "method": "DELETE",
+                                                        "body": {}
+                                                    },
+                                                    "status": "Not Found",
+                                                    "code": 404,
+                                                    "header": [],
+                                                    "cookie": [],
+                                                    "_postman_previewlanguage": "text"
+                                                }
+                                            ],
+                                            "event": [],
+                                            "protocolProfileBehavior": {
+                                                "disableBodyPruning": true
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "providers",
+                            "description": "",
+                            "item": [
+                                {
+                                    "id": "11d3b6ca-1037-47b4-8dc3-04098f97d09b",
+                                    "name": "Add or update provider",
+                                    "request": {
+                                        "name": "Add or update provider",
+                                        "description": {
+                                            "content": "Upserts provider credentials and rate limits. The API key is encrypted with AES-256-GCM at rest.",
+                                            "type": "text/plain"
+                                        },
+                                        "url": {
+                                            "path": [
+                                                "api",
+                                                "v1",
+                                                "providers"
+                                            ],
+                                            "host": [
+                                                "{{base_url}}"
+                                            ],
+                                            "query": [],
+                                            "variable": []
+                                        },
+                                        "header": [
+                                            {
+                                                "key": "Content-Type",
+                                                "value": "application/json"
+                                            }
+                                        ],
+                                        "method": "POST",
+                                        "body": {
+                                            "mode": "raw",
+                                            "raw": "{\n  \"provider\": \"anthropic\",\n  \"api_key\": \"<string>\",\n  \"rate_limit_rpm\": \"<number>\",\n  \"rate_limit_tpm\": \"<number>\",\n  \"monthly_spend_limit_usd\": \"<number>\"\n}",
+                                            "options": {
+                                                "raw": {
+                                                    "headerFamily": "json",
+                                                    "language": "json"
+                                                }
+                                            }
+                                        },
+                                        "auth": {
+                                            "type": "bearer",
+                                            "bearer": [
+                                                {
+                                                    "key": "token",
+                                                    "value": "{{api_key}}"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "response": [
+                                        {
+                                            "id": "d92221d6-a421-4412-9cb3-3ff82eae7eee",
+                                            "name": "Provider config saved",
+                                            "originalRequest": {
+                                                "url": {
+                                                    "path": [
+                                                        "api",
+                                                        "v1",
+                                                        "providers"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": []
+                                                },
+                                                "header": [
+                                                    {
+                                                        "key": "Content-Type",
+                                                        "value": "application/json"
+                                                    },
+                                                    {
+                                                        "description": {
+                                                            "content": "Added as a part of security scheme: bearer",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "Authorization",
+                                                        "value": "Bearer <token>"
+                                                    }
+                                                ],
+                                                "method": "POST",
+                                                "body": {
+                                                    "mode": "raw",
+                                                    "raw": "{\n  \"provider\": \"anthropic\",\n  \"api_key\": \"<string>\",\n  \"rate_limit_rpm\": \"<number>\",\n  \"rate_limit_tpm\": \"<number>\",\n  \"monthly_spend_limit_usd\": \"<number>\"\n}",
+                                                    "options": {
+                                                        "raw": {
+                                                            "headerFamily": "json",
+                                                            "language": "json"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "status": "OK",
+                                            "code": 200,
+                                            "header": [],
+                                            "cookie": [],
+                                            "_postman_previewlanguage": "text"
+                                        }
+                                    ],
+                                    "event": [],
+                                    "protocolProfileBehavior": {
+                                        "disableBodyPruning": true
+                                    }
+                                },
+                                {
+                                    "id": "6c50b60c-f898-4042-a809-067095faeacb",
+                                    "name": "List providers",
+                                    "request": {
+                                        "name": "List providers",
+                                        "description": {
+                                            "content": "Returns all configured providers. API keys are never returned.",
+                                            "type": "text/plain"
+                                        },
+                                        "url": {
+                                            "path": [
+                                                "api",
+                                                "v1",
+                                                "providers"
+                                            ],
+                                            "host": [
+                                                "{{base_url}}"
+                                            ],
+                                            "query": [],
+                                            "variable": []
+                                        },
+                                        "method": "GET",
+                                        "body": {},
+                                        "auth": {
+                                            "type": "bearer",
+                                            "bearer": [
+                                                {
+                                                    "key": "token",
+                                                    "value": "{{api_key}}"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "response": [
+                                        {
+                                            "id": "cb034145-c67a-4707-b4ba-54623f8daa7d",
+                                            "name": "List of configured providers",
+                                            "originalRequest": {
+                                                "url": {
+                                                    "path": [
+                                                        "api",
+                                                        "v1",
+                                                        "providers"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": []
+                                                },
+                                                "header": [
+                                                    {
+                                                        "description": {
+                                                            "content": "Added as a part of security scheme: bearer",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "Authorization",
+                                                        "value": "Bearer <token>"
+                                                    }
+                                                ],
+                                                "method": "GET",
+                                                "body": {}
+                                            },
+                                            "status": "OK",
+                                            "code": 200,
+                                            "header": [],
+                                            "cookie": [],
+                                            "_postman_previewlanguage": "text"
+                                        }
+                                    ],
+                                    "event": [],
+                                    "protocolProfileBehavior": {
+                                        "disableBodyPruning": true
+                                    }
+                                },
+                                {
+                                    "name": "status",
+                                    "description": "",
+                                    "item": [
+                                        {
+                                            "id": "cdd732a8-bd80-4ca2-bd3c-e79bfec4b719",
+                                            "name": "Provider status",
+                                            "request": {
+                                                "name": "Provider status",
+                                                "description": {
+                                                    "content": "Probes each configured provider and returns latency/status. Results are cached 30s.",
+                                                    "type": "text/plain"
+                                                },
+                                                "url": {
+                                                    "path": [
+                                                        "api",
+                                                        "v1",
+                                                        "providers",
+                                                        "status"
+                                                    ],
+                                                    "host": [
+                                                        "{{base_url}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": []
+                                                },
+                                                "method": "GET",
+                                                "body": {},
+                                                "auth": {
+                                                    "type": "bearer",
+                                                    "bearer": [
+                                                        {
+                                                            "key": "token",
+                                                            "value": "{{api_key}}"
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "response": [
+                                                {
+                                                    "id": "d4beb7ba-b0a4-4dea-a711-e1947aace514",
+                                                    "name": "Per-provider status: active | degraded | down",
+                                                    "originalRequest": {
+                                                        "url": {
+                                                            "path": [
+                                                                "api",
+                                                                "v1",
+                                                                "providers",
+                                                                "status"
+                                                            ],
+                                                            "host": [
+                                                                "{{baseUrl}}"
+                                                            ],
+                                                            "query": [],
+                                                            "variable": []
+                                                        },
+                                                        "header": [
+                                                            {
+                                                                "description": {
+                                                                    "content": "Added as a part of security scheme: bearer",
+                                                                    "type": "text/plain"
+                                                                },
+                                                                "key": "Authorization",
+                                                                "value": "Bearer <token>"
+                                                            }
+                                                        ],
+                                                        "method": "GET",
+                                                        "body": {}
+                                                    },
+                                                    "status": "OK",
+                                                    "code": 200,
+                                                    "header": [],
+                                                    "cookie": [],
+                                                    "_postman_previewlanguage": "text"
+                                                }
+                                            ],
+                                            "event": [],
+                                            "protocolProfileBehavior": {
+                                                "disableBodyPruning": true
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "{provider}",
+                                    "description": "",
+                                    "item": [
+                                        {
+                                            "id": "b84c494c-e388-4f18-9a03-b584b7190e58",
+                                            "name": "Remove provider",
+                                            "request": {
+                                                "name": "Remove provider",
+                                                "description": {
+                                                    "content": "Deletes the provider config and its encrypted API key.",
+                                                    "type": "text/plain"
+                                                },
+                                                "url": {
+                                                    "path": [
+                                                        "api",
+                                                        "v1",
+                                                        "providers",
+                                                        ":provider"
+                                                    ],
+                                                    "host": [
+                                                        "{{base_url}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": [
+                                                        {
+                                                            "type": "any",
+                                                            "value": "anthropic",
+                                                            "key": "provider",
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required)  (This can only be one of openai,anthropic,gemini)",
+                                                                "type": "text/plain"
+                                                            }
+                                                        }
+                                                    ]
+                                                },
+                                                "method": "DELETE",
+                                                "body": {},
+                                                "auth": {
+                                                    "type": "bearer",
+                                                    "bearer": [
+                                                        {
+                                                            "key": "token",
+                                                            "value": "{{api_key}}"
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "response": [
+                                                {
+                                                    "id": "2d0f0cac-f894-4b10-938f-3e6caccc1d84",
+                                                    "name": "Provider removed",
+                                                    "originalRequest": {
+                                                        "url": {
+                                                            "path": [
+                                                                "api",
+                                                                "v1",
+                                                                "providers",
+                                                                ":provider"
+                                                            ],
+                                                            "host": [
+                                                                "{{baseUrl}}"
+                                                            ],
+                                                            "query": [],
+                                                            "variable": [
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "(Required)  (This can only be one of openai,anthropic,gemini)",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "type": "any",
+                                                                    "value": "anthropic",
+                                                                    "key": "provider"
+                                                                }
+                                                            ]
+                                                        },
+                                                        "header": [
+                                                            {
+                                                                "description": {
+                                                                    "content": "Added as a part of security scheme: bearer",
+                                                                    "type": "text/plain"
+                                                                },
+                                                                "key": "Authorization",
+                                                                "value": "Bearer <token>"
+                                                            }
+                                                        ],
+                                                        "method": "DELETE",
+                                                        "body": {}
+                                                    },
+                                                    "status": "No Content",
+                                                    "code": 204,
+                                                    "header": [],
+                                                    "cookie": [],
+                                                    "_postman_previewlanguage": "text"
+                                                },
+                                                {
+                                                    "id": "1c7cc9b0-5b49-4faa-adec-91fcb76d3da1",
+                                                    "name": "Provider not found",
+                                                    "originalRequest": {
+                                                        "url": {
+                                                            "path": [
+                                                                "api",
+                                                                "v1",
+                                                                "providers",
+                                                                ":provider"
+                                                            ],
+                                                            "host": [
+                                                                "{{baseUrl}}"
+                                                            ],
+                                                            "query": [],
+                                                            "variable": [
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "(Required)  (This can only be one of openai,anthropic,gemini)",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "type": "any",
+                                                                    "value": "anthropic",
+                                                                    "key": "provider"
+                                                                }
+                                                            ]
+                                                        },
+                                                        "header": [
+                                                            {
+                                                                "description": {
+                                                                    "content": "Added as a part of security scheme: bearer",
+                                                                    "type": "text/plain"
+                                                                },
+                                                                "key": "Authorization",
+                                                                "value": "Bearer <token>"
+                                                            }
+                                                        ],
+                                                        "method": "DELETE",
+                                                        "body": {}
+                                                    },
+                                                    "status": "Not Found",
+                                                    "code": 404,
+                                                    "header": [],
+                                                    "cookie": [],
+                                                    "_postman_previewlanguage": "text"
+                                                }
+                                            ],
+                                            "event": [],
+                                            "protocolProfileBehavior": {
+                                                "disableBodyPruning": true
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "analytics",
+                            "description": "",
+                            "item": [
+                                {
+                                    "name": "cache",
+                                    "description": "",
+                                    "item": [
+                                        {
+                                            "id": "bd2216d9-3fc7-48e6-9950-ba6ef2032fa0",
+                                            "name": "Cache statistics",
+                                            "request": {
+                                                "name": "Cache statistics",
+                                                "description": {
+                                                    "content": "Hit rate, miss count, and estimated cost savings from the response cache",
+                                                    "type": "text/plain"
+                                                },
+                                                "url": {
+                                                    "path": [
+                                                        "api",
+                                                        "v1",
+                                                        "analytics",
+                                                        "cache"
+                                                    ],
+                                                    "host": [
+                                                        "{{base_url}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": []
+                                                },
+                                                "method": "GET",
+                                                "body": {},
+                                                "auth": {
+                                                    "type": "bearer",
+                                                    "bearer": [
+                                                        {
+                                                            "key": "token",
+                                                            "value": "{{api_key}}"
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "response": [
+                                                {
+                                                    "id": "ffa85331-7a06-41f1-af5b-89a5f5fccf92",
+                                                    "name": "Cache stats for the authenticated tenant",
+                                                    "originalRequest": {
+                                                        "url": {
+                                                            "path": [
+                                                                "api",
+                                                                "v1",
+                                                                "analytics",
+                                                                "cache"
+                                                            ],
+                                                            "host": [
+                                                                "{{baseUrl}}"
+                                                            ],
+                                                            "query": [],
+                                                            "variable": []
+                                                        },
+                                                        "header": [
+                                                            {
+                                                                "description": {
+                                                                    "content": "Added as a part of security scheme: bearer",
+                                                                    "type": "text/plain"
+                                                                },
+                                                                "key": "Authorization",
+                                                                "value": "Bearer <token>"
+                                                            }
+                                                        ],
+                                                        "method": "GET",
+                                                        "body": {}
+                                                    },
+                                                    "status": "OK",
+                                                    "code": 200,
+                                                    "header": [],
+                                                    "cookie": [],
+                                                    "_postman_previewlanguage": "text"
+                                                }
+                                            ],
+                                            "event": [],
+                                            "protocolProfileBehavior": {
+                                                "disableBodyPruning": true
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "usage",
+                                    "description": "",
+                                    "item": [
+                                        {
+                                            "id": "8c681ceb-7ba2-47fd-94ec-16083a1a7192",
+                                            "name": "Usage time series",
+                                            "request": {
+                                                "name": "Usage time series",
+                                                "description": {
+                                                    "content": "Token usage and request counts grouped by day or hour",
+                                                    "type": "text/plain"
+                                                },
+                                                "url": {
+                                                    "path": [
+                                                        "api",
+                                                        "v1",
+                                                        "analytics",
+                                                        "usage"
+                                                    ],
+                                                    "host": [
+                                                        "{{base_url}}"
+                                                    ],
+                                                    "query": [
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required) Start date (ISO 8601)",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "key": "start",
+                                                            "value": "<string>"
+                                                        },
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required) End date (ISO 8601)",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "key": "end",
+                                                            "value": "<string>"
+                                                        },
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": " (This can only be one of day,hour)",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "key": "granularity",
+                                                            "value": "hour"
+                                                        },
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "key": "provider",
+                                                            "value": "<string>"
+                                                        },
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "key": "model",
+                                                            "value": "<string>"
+                                                        }
+                                                    ],
+                                                    "variable": []
+                                                },
+                                                "method": "GET",
+                                                "body": {},
+                                                "auth": {
+                                                    "type": "bearer",
+                                                    "bearer": [
+                                                        {
+                                                            "key": "token",
+                                                            "value": "{{api_key}}"
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "response": [
+                                                {
+                                                    "id": "fbe5a536-6e2a-47d8-96ce-3a8397bd38ad",
+                                                    "name": "Time-series usage data",
+                                                    "originalRequest": {
+                                                        "url": {
+                                                            "path": [
+                                                                "api",
+                                                                "v1",
+                                                                "analytics",
+                                                                "usage"
+                                                            ],
+                                                            "host": [
+                                                                "{{baseUrl}}"
+                                                            ],
+                                                            "query": [
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "(Required) Start date (ISO 8601)",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "key": "start",
+                                                                    "value": "<string>"
+                                                                },
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "(Required) End date (ISO 8601)",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "key": "end",
+                                                                    "value": "<string>"
+                                                                },
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": " (This can only be one of day,hour)",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "key": "granularity",
+                                                                    "value": "hour"
+                                                                },
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "key": "provider",
+                                                                    "value": "<string>"
+                                                                },
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "key": "model",
+                                                                    "value": "<string>"
+                                                                }
+                                                            ],
+                                                            "variable": []
+                                                        },
+                                                        "header": [
+                                                            {
+                                                                "description": {
+                                                                    "content": "Added as a part of security scheme: bearer",
+                                                                    "type": "text/plain"
+                                                                },
+                                                                "key": "Authorization",
+                                                                "value": "Bearer <token>"
+                                                            }
+                                                        ],
+                                                        "method": "GET",
+                                                        "body": {}
+                                                    },
+                                                    "status": "OK",
+                                                    "code": 200,
+                                                    "header": [],
+                                                    "cookie": [],
+                                                    "_postman_previewlanguage": "text"
+                                                }
+                                            ],
+                                            "event": [],
+                                            "protocolProfileBehavior": {
+                                                "disableBodyPruning": true
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "requests",
+                                    "description": "",
+                                    "item": [
+                                        {
+                                            "id": "19370ffc-aabf-4904-a60f-d18f20748e97",
+                                            "name": "Request log",
+                                            "request": {
+                                                "name": "Request log",
+                                                "description": {
+                                                    "content": "Paginated log of all gateway requests with filters",
+                                                    "type": "text/plain"
+                                                },
+                                                "url": {
+                                                    "path": [
+                                                        "api",
+                                                        "v1",
+                                                        "analytics",
+                                                        "requests"
+                                                    ],
+                                                    "host": [
+                                                        "{{base_url}}"
+                                                    ],
+                                                    "query": [
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "key": "page",
+                                                            "value": "1"
+                                                        },
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "key": "limit",
+                                                            "value": "50"
+                                                        },
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "key": "provider",
+                                                            "value": "<string>"
+                                                        },
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": " (This can only be one of success,error,cached,rate_limited)",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "key": "status",
+                                                            "value": "error"
+                                                        },
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "key": "start",
+                                                            "value": "<string>"
+                                                        },
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "key": "end",
+                                                            "value": "<string>"
+                                                        }
+                                                    ],
+                                                    "variable": []
+                                                },
+                                                "method": "GET",
+                                                "body": {},
+                                                "auth": {
+                                                    "type": "bearer",
+                                                    "bearer": [
+                                                        {
+                                                            "key": "token",
+                                                            "value": "{{api_key}}"
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "response": [
+                                                {
+                                                    "id": "e3c98c88-ebd6-40ef-a325-068761cdc75e",
+                                                    "name": "Paginated request log",
+                                                    "originalRequest": {
+                                                        "url": {
+                                                            "path": [
+                                                                "api",
+                                                                "v1",
+                                                                "analytics",
+                                                                "requests"
+                                                            ],
+                                                            "host": [
+                                                                "{{baseUrl}}"
+                                                            ],
+                                                            "query": [
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "key": "page",
+                                                                    "value": "1"
+                                                                },
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "key": "limit",
+                                                                    "value": "50"
+                                                                },
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "key": "provider",
+                                                                    "value": "<string>"
+                                                                },
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": " (This can only be one of success,error,cached,rate_limited)",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "key": "status",
+                                                                    "value": "error"
+                                                                },
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "key": "start",
+                                                                    "value": "<string>"
+                                                                },
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "key": "end",
+                                                                    "value": "<string>"
+                                                                }
+                                                            ],
+                                                            "variable": []
+                                                        },
+                                                        "header": [
+                                                            {
+                                                                "description": {
+                                                                    "content": "Added as a part of security scheme: bearer",
+                                                                    "type": "text/plain"
+                                                                },
+                                                                "key": "Authorization",
+                                                                "value": "Bearer <token>"
+                                                            }
+                                                        ],
+                                                        "method": "GET",
+                                                        "body": {}
+                                                    },
+                                                    "status": "OK",
+                                                    "code": 200,
+                                                    "header": [],
+                                                    "cookie": [],
+                                                    "_postman_previewlanguage": "text"
+                                                }
+                                            ],
+                                            "event": [],
+                                            "protocolProfileBehavior": {
+                                                "disableBodyPruning": true
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "cost",
+                                    "description": "",
+                                    "item": [
+                                        {
+                                            "id": "bbe082e4-74e4-4bef-8f66-e21fabed6d9d",
+                                            "name": "Cost breakdown",
+                                            "request": {
+                                                "name": "Cost breakdown",
+                                                "description": {
+                                                    "content": "Total spend and per-provider cost breakdown for a date range",
+                                                    "type": "text/plain"
+                                                },
+                                                "url": {
+                                                    "path": [
+                                                        "api",
+                                                        "v1",
+                                                        "analytics",
+                                                        "cost"
+                                                    ],
+                                                    "host": [
+                                                        "{{base_url}}"
+                                                    ],
+                                                    "query": [
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required) Start date (ISO 8601)",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "key": "start",
+                                                            "value": "<string>"
+                                                        },
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required) End date (ISO 8601)",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "key": "end",
+                                                            "value": "<string>"
+                                                        }
+                                                    ],
+                                                    "variable": []
+                                                },
+                                                "method": "GET",
+                                                "body": {},
+                                                "auth": {
+                                                    "type": "bearer",
+                                                    "bearer": [
+                                                        {
+                                                            "key": "token",
+                                                            "value": "{{api_key}}"
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "response": [
+                                                {
+                                                    "id": "6ef4542f-6582-48df-ba17-36d28ffd5411",
+                                                    "name": "Cost breakdown by provider",
+                                                    "originalRequest": {
+                                                        "url": {
+                                                            "path": [
+                                                                "api",
+                                                                "v1",
+                                                                "analytics",
+                                                                "cost"
+                                                            ],
+                                                            "host": [
+                                                                "{{baseUrl}}"
+                                                            ],
+                                                            "query": [
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "(Required) Start date (ISO 8601)",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "key": "start",
+                                                                    "value": "<string>"
+                                                                },
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "(Required) End date (ISO 8601)",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "key": "end",
+                                                                    "value": "<string>"
+                                                                }
+                                                            ],
+                                                            "variable": []
+                                                        },
+                                                        "header": [
+                                                            {
+                                                                "description": {
+                                                                    "content": "Added as a part of security scheme: bearer",
+                                                                    "type": "text/plain"
+                                                                },
+                                                                "key": "Authorization",
+                                                                "value": "Bearer <token>"
+                                                            }
+                                                        ],
+                                                        "method": "GET",
+                                                        "body": {}
+                                                    },
+                                                    "status": "OK",
+                                                    "code": 200,
+                                                    "header": [],
+                                                    "cookie": [],
+                                                    "_postman_previewlanguage": "text"
+                                                }
+                                            ],
+                                            "event": [],
+                                            "protocolProfileBehavior": {
+                                                "disableBodyPruning": true
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "v1",
+            "description": "",
+            "item": [
+                {
+                    "name": "chat",
+                    "description": "",
+                    "item": [
+                        {
+                            "name": "completions",
+                            "description": "",
+                            "item": [
+                                {
+                                    "id": "c4e5386c-e9d8-4942-9bb3-b70ad9d62c50",
+                                    "name": "Chat completion",
+                                    "request": {
+                                        "name": "Chat completion",
+                                        "description": {
+                                            "content": "OpenAI-compatible chat completion endpoint. Routes to OpenAI, Anthropic, or Gemini based on the model name. Supports streaming (SSE) and response caching.",
+                                            "type": "text/plain"
+                                        },
+                                        "url": {
+                                            "path": [
+                                                "v1",
+                                                "chat",
+                                                "completions"
+                                            ],
+                                            "host": [
+                                                "{{base_url}}"
+                                            ],
+                                            "query": [],
+                                            "variable": []
+                                        },
+                                        "header": [
+                                            {
+                                                "disabled": true,
+                                                "description": {
+                                                    "content": "(Optional) override routing",
+                                                    "type": "text/plain"
+                                                },
+                                                "key": "x-provider",
+                                                "value": "<string>"
+                                            },
+                                            {
+                                                "disabled": true,
+                                                "description": {
+                                                    "content": "(Optional) override routing",
+                                                    "type": "text/plain"
+                                                },
+                                                "key": "x-tag",
+                                                "value": "<string>"
+                                            },
+                                            {
+                                                "key": "Content-Type",
+                                                "value": "application/json"
+                                            }
+                                        ],
+                                        "method": "POST",
+                                        "body": {
+                                            "mode": "raw",
+                                            "raw": "{\n  \"model\": \"claude-haiku-4-5-20251001\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Say hello in one sentence.\"\n    }\n  ],\n  \"max_tokens\": 50\n}",
+                                            "options": {
+                                                "raw": {
+                                                    "language": "json"
+                                                }
+                                            }
+                                        },
+                                        "auth": {
+                                            "type": "bearer",
+                                            "bearer": [
+                                                {
+                                                    "key": "token",
+                                                    "value": "{{api_key}}"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "response": [
+                                        {
+                                            "id": "48b20fe4-7ded-489d-b99f-9ff5c54fa892",
+                                            "name": "Successful completion or SSE stream",
+                                            "originalRequest": {
+                                                "url": {
+                                                    "path": [
+                                                        "v1",
+                                                        "chat",
+                                                        "completions"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": []
+                                                },
+                                                "header": [
+                                                    {
+                                                        "disabled": false,
+                                                        "description": {
+                                                            "content": "(Required) ",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "x-provider",
+                                                        "value": "<string>"
+                                                    },
+                                                    {
+                                                        "disabled": false,
+                                                        "description": {
+                                                            "content": "(Required) ",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "x-tag",
+                                                        "value": "<string>"
+                                                    },
+                                                    {
+                                                        "key": "Content-Type",
+                                                        "value": "application/json"
+                                                    },
+                                                    {
+                                                        "description": {
+                                                            "content": "Added as a part of security scheme: bearer",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "Authorization",
+                                                        "value": "Bearer <token>"
+                                                    }
+                                                ],
+                                                "method": "POST",
+                                                "body": {
+                                                    "mode": "raw",
+                                                    "raw": "{\n  \"model\": \"<string>\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"<string>\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"<string>\"\n    }\n  ],\n  \"max_tokens\": \"<number>\",\n  \"temperature\": \"<number>\",\n  \"stream\": \"<boolean>\"\n}",
+                                                    "options": {
+                                                        "raw": {
+                                                            "headerFamily": "json",
+                                                            "language": "json"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "status": "OK",
+                                            "code": 200,
+                                            "header": [],
+                                            "cookie": [],
+                                            "_postman_previewlanguage": "text"
+                                        },
+                                        {
+                                            "id": "64932d6d-5f4b-4398-bf09-b03f8c9948a3",
+                                            "name": "Invalid or missing API key",
+                                            "originalRequest": {
+                                                "url": {
+                                                    "path": [
+                                                        "v1",
+                                                        "chat",
+                                                        "completions"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": []
+                                                },
+                                                "header": [
+                                                    {
+                                                        "disabled": false,
+                                                        "description": {
+                                                            "content": "(Required) ",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "x-provider",
+                                                        "value": "<string>"
+                                                    },
+                                                    {
+                                                        "disabled": false,
+                                                        "description": {
+                                                            "content": "(Required) ",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "x-tag",
+                                                        "value": "<string>"
+                                                    },
+                                                    {
+                                                        "key": "Content-Type",
+                                                        "value": "application/json"
+                                                    },
+                                                    {
+                                                        "description": {
+                                                            "content": "Added as a part of security scheme: bearer",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "Authorization",
+                                                        "value": "Bearer <token>"
+                                                    }
+                                                ],
+                                                "method": "POST",
+                                                "body": {
+                                                    "mode": "raw",
+                                                    "raw": "{\n  \"model\": \"<string>\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"<string>\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"<string>\"\n    }\n  ],\n  \"max_tokens\": \"<number>\",\n  \"temperature\": \"<number>\",\n  \"stream\": \"<boolean>\"\n}",
+                                                    "options": {
+                                                        "raw": {
+                                                            "headerFamily": "json",
+                                                            "language": "json"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "status": "Unauthorized",
+                                            "code": 401,
+                                            "header": [],
+                                            "cookie": [],
+                                            "_postman_previewlanguage": "text"
+                                        },
+                                        {
+                                            "id": "26a7c5e9-1c6e-49d6-9169-daafbfb03cc7",
+                                            "name": "Monthly budget limit exceeded",
+                                            "originalRequest": {
+                                                "url": {
+                                                    "path": [
+                                                        "v1",
+                                                        "chat",
+                                                        "completions"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": []
+                                                },
+                                                "header": [
+                                                    {
+                                                        "disabled": false,
+                                                        "description": {
+                                                            "content": "(Required) ",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "x-provider",
+                                                        "value": "<string>"
+                                                    },
+                                                    {
+                                                        "disabled": false,
+                                                        "description": {
+                                                            "content": "(Required) ",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "x-tag",
+                                                        "value": "<string>"
+                                                    },
+                                                    {
+                                                        "key": "Content-Type",
+                                                        "value": "application/json"
+                                                    },
+                                                    {
+                                                        "description": {
+                                                            "content": "Added as a part of security scheme: bearer",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "Authorization",
+                                                        "value": "Bearer <token>"
+                                                    }
+                                                ],
+                                                "method": "POST",
+                                                "body": {
+                                                    "mode": "raw",
+                                                    "raw": "{\n  \"model\": \"<string>\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"<string>\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"<string>\"\n    }\n  ],\n  \"max_tokens\": \"<number>\",\n  \"temperature\": \"<number>\",\n  \"stream\": \"<boolean>\"\n}",
+                                                    "options": {
+                                                        "raw": {
+                                                            "headerFamily": "json",
+                                                            "language": "json"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "status": "Payment Required",
+                                            "code": 402,
+                                            "header": [],
+                                            "cookie": [],
+                                            "_postman_previewlanguage": "text"
+                                        },
+                                        {
+                                            "id": "41c0e0fc-e84f-4fe4-984c-5baec5aa57be",
+                                            "name": "Rate limit exceeded (RPM or TPM)",
+                                            "originalRequest": {
+                                                "url": {
+                                                    "path": [
+                                                        "v1",
+                                                        "chat",
+                                                        "completions"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": []
+                                                },
+                                                "header": [
+                                                    {
+                                                        "disabled": false,
+                                                        "description": {
+                                                            "content": "(Required) ",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "x-provider",
+                                                        "value": "<string>"
+                                                    },
+                                                    {
+                                                        "disabled": false,
+                                                        "description": {
+                                                            "content": "(Required) ",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "x-tag",
+                                                        "value": "<string>"
+                                                    },
+                                                    {
+                                                        "key": "Content-Type",
+                                                        "value": "application/json"
+                                                    },
+                                                    {
+                                                        "description": {
+                                                            "content": "Added as a part of security scheme: bearer",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "Authorization",
+                                                        "value": "Bearer <token>"
+                                                    }
+                                                ],
+                                                "method": "POST",
+                                                "body": {
+                                                    "mode": "raw",
+                                                    "raw": "{\n  \"model\": \"<string>\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"<string>\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"<string>\"\n    }\n  ],\n  \"max_tokens\": \"<number>\",\n  \"temperature\": \"<number>\",\n  \"stream\": \"<boolean>\"\n}",
+                                                    "options": {
+                                                        "raw": {
+                                                            "headerFamily": "json",
+                                                            "language": "json"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "status": "Too Many Requests",
+                                            "code": 429,
+                                            "header": [],
+                                            "cookie": [],
+                                            "_postman_previewlanguage": "text"
+                                        }
+                                    ],
+                                    "event": [],
+                                    "protocolProfileBehavior": {
+                                        "disableBodyPruning": true
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "health",
+            "description": "",
+            "item": [
+                {
+                    "id": "813ca81c-8f03-4a10-8a49-9849bbfe23ff",
+                    "name": "Liveness probe",
+                    "request": {
+                        "name": "Liveness probe",
+                        "description": {
+                            "content": "Always returns 200. Confirms the process is running.",
+                            "type": "text/plain"
+                        },
+                        "url": {
+                            "path": [
+                                "health"
+                            ],
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "method": "GET",
+                        "body": {},
+                        "auth": null
+                    },
+                    "response": [
+                        {
+                            "id": "ae4e24c3-6f81-4111-a716-c4f87e62a820",
+                            "name": "{ status: \"ok\" }",
+                            "originalRequest": {
+                                "url": {
+                                    "path": [
+                                        "health"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": []
+                                },
+                                "method": "GET",
+                                "body": {}
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "header": [],
+                            "cookie": [],
+                            "_postman_previewlanguage": "text"
+                        }
+                    ],
+                    "event": [],
+                    "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                    }
+                },
+                {
+                    "name": "ready",
+                    "description": "",
+                    "item": [
+                        {
+                            "id": "e49af247-e866-4615-805a-abd0c61a3412",
+                            "name": "Readiness probe",
+                            "request": {
+                                "name": "Readiness probe",
+                                "description": {
+                                    "content": "Checks DB and Redis connectivity in parallel. Returns 503 if either is unreachable.",
+                                    "type": "text/plain"
+                                },
+                                "url": {
+                                    "path": [
+                                        "health",
+                                        "ready"
+                                    ],
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "query": [],
+                                    "variable": []
+                                },
+                                "method": "GET",
+                                "body": {},
+                                "auth": null
+                            },
+                            "response": [
+                                {
+                                    "id": "80b9e078-edf8-4604-906d-1a46313ee6c3",
+                                    "name": "All dependencies healthy",
+                                    "originalRequest": {
+                                        "url": {
+                                            "path": [
+                                                "health",
+                                                "ready"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [],
+                                            "variable": []
+                                        },
+                                        "method": "GET",
+                                        "body": {}
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "header": [],
+                                    "cookie": [],
+                                    "_postman_previewlanguage": "text"
+                                },
+                                {
+                                    "id": "f0ad53b4-f126-4af9-a934-430660405fcc",
+                                    "name": "One or more dependencies unreachable",
+                                    "originalRequest": {
+                                        "url": {
+                                            "path": [
+                                                "health",
+                                                "ready"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [],
+                                            "variable": []
+                                        },
+                                        "method": "GET",
+                                        "body": {}
+                                    },
+                                    "status": "Service Unavailable",
+                                    "code": 503,
+                                    "header": [],
+                                    "cookie": [],
+                                    "_postman_previewlanguage": "text"
+                                }
+                            ],
+                            "event": [],
+                            "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "event": [],
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:3000",
+            "type": "string"
+        },
+        {
+            "key": "api_key",
+            "value": "",
+            "type": "string",
+            "description": "Paste your gateway Bearer token here"
+        }
+    ],
+    "info": {
+        "_postman_id": "9f9c5256-4132-4b0a-928f-d786d37c9a2f",
+        "name": "LLM Gateway API",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "description": {
+            "content": "Production-grade API gateway for OpenAI, Anthropic, and Gemini. Handles routing, caching, rate limiting, and cost tracking.",
+            "type": "text/plain"
+        }
+    },
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{api_key}}",
+                "type": "string"
+            }
+        ]
+    }
+}

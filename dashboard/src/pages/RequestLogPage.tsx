@@ -231,7 +231,7 @@ export default function RequestLogPage() {
                     className="border-slate-800 hover:bg-slate-800/40 font-mono text-xs"
                   >
                     <TableCell className="text-slate-400 whitespace-nowrap">
-                      {formatTime(row.created_at)}
+                      {formatTime(row.createdAt)}
                     </TableCell>
                     <TableCell>
                       <ProviderBadge provider={row.provider} />
@@ -246,7 +246,7 @@ export default function RequestLogPage() {
                       <StatusBadge status={row.status} />
                     </TableCell>
                     <TableCell>
-                      {row.cache_hit ? (
+                      {row.cacheHit ? (
                         <Badge className="bg-blue-900 text-blue-300 border border-blue-700 text-xs px-1.5 py-0">
                           HIT
                         </Badge>
@@ -255,29 +255,29 @@ export default function RequestLogPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-slate-300 whitespace-nowrap">
-                      {row.prompt_tokens === 0 && row.completion_tokens === 0 ? (
+                      {!row.promptTokens && !row.completionTokens ? (
                         <span className="text-slate-600">—</span>
                       ) : (
                         <>
-                          <span className="text-slate-500">{row.prompt_tokens}</span>
+                          <span className="text-slate-500">{row.promptTokens ?? 0}</span>
                           <span className="text-slate-600 mx-1">+</span>
-                          <span className="text-slate-500">{row.completion_tokens}</span>
+                          <span className="text-slate-500">{row.completionTokens ?? 0}</span>
                           <span className="text-slate-600 mx-1">=</span>
                           <span className="text-slate-200">
-                            {row.prompt_tokens + row.completion_tokens}
+                            {(row.promptTokens ?? 0) + (row.completionTokens ?? 0)}
                           </span>
                         </>
                       )}
                     </TableCell>
                     <TableCell className="text-right text-orange-400">
-                      {row.cost_usd === 0 ? (
+                      {!row.costUsd ? (
                         <span className="text-slate-600">—</span>
                       ) : (
-                        formatCost(row.cost_usd)
+                        formatCost(row.costUsd)
                       )}
                     </TableCell>
                     <TableCell className="text-right text-slate-300">
-                      {row.latency_ms}ms
+                      {row.latencyMs != null ? `${row.latencyMs}ms` : '—'}
                     </TableCell>
                   </TableRow>
                 ))
