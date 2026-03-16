@@ -1,10 +1,9 @@
 # LLM Gateway — Project Index
 
 ## CURRENT STATE
-Last session ended: Phase 8 COMPLETE — T43–T50 done + all dashboard runtime bugs fixed
-Next task: T51 (Phase 9 start)
-Tests: 457 (backend) + dashboard builds clean
-Branch: dev
+V1: COMPLETE — All phases T01–T56 done
+Tests: 474 passing, 3 skipped (live API integration tests)
+Branch: main
 
 ## What We Are Building
 Production-grade API gateway between applications and LLM providers (OpenAI, Anthropic, Gemini).
@@ -24,7 +23,7 @@ Request -> RequestIdMiddleware -> AuthGuard -> RateLimitGuard -> CacheIntercepto
 - Async tail: BullMQ for all DB writes after stream ends, never block hot path
 
 ## Current Phase
-Update this line at end of every session: "Completed T[X], next is T[X+1]"
+V1 COMPLETE. All phases done T01–T56.
 
 ## Reference Docs
 - Architecture + decisions: .claude/docs/architecture.md
@@ -79,7 +78,7 @@ Phase 5: COMPLETE (T29-T33)
 Phase 6: COMPLETE (T34-T38)
 Phase 7: COMPLETE (T39-T42)
 Phase 8: COMPLETE (T43-T50)
-Phase 9: IN PROGRESS — T51 next
+Phase 9: COMPLETE (T51-T56)
 
 ---
 
