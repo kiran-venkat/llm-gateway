@@ -7,7 +7,9 @@ import {
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
+import { InjectRedis } from '@nestjs-modules/ioredis';
 import { Request } from 'express';
+import { Redis } from 'ioredis';
 import { AuthContext } from '../interfaces/auth-context.interface';
 import { RateLimitService } from '../../modules/rate-limit/rate-limit.service';
 import { ProviderConfigsRepository } from '../../modules/providers/provider-configs.repository';
@@ -40,6 +42,7 @@ export class RateLimitGuard implements CanActivate {
     private readonly rateLimitService: RateLimitService,
     private readonly providerConfigsRepo: ProviderConfigsRepository,
     private readonly adapterRegistry: AdapterRegistry,
+    @InjectRedis() private readonly redis: Redis,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -99,6 +102,23 @@ export class RateLimitGuard implements CanActivate {
           limit_type: 'rpm',
         },
         HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    // ── e.5 Budget check (read-only Redis GET — no state mutation) ───────────
+    // Placed after RPM (so the RPM slot is consumed by the attempt) but before
+    // TPM (so we don't add token weight for a request we're about to reject).
+    const budgetExceeded = await this.redis.get(
+      `tenant:${tenant.tenantId}:budget:exceeded`,
+    );
+    if (budgetExceeded) {
+      throw new HttpException(
+        {
+          error: 'budget_exceeded',
+          message: 'Monthly budget limit reached',
+          request_id: req.requestId,
+        },
+        HttpStatus.PAYMENT_REQUIRED,
       );
     }
 

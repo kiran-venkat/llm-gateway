@@ -1,7 +1,9 @@
 import { Job } from 'bull';
+import { Redis } from 'ioredis';
 import { UsageJob, UsageJobData } from './usage.job';
 import { UsageRepository } from '../usage.repository';
 import { CostCalculatorService } from '../cost-calculator.service';
+import { BudgetCheckerService, BudgetStatus } from '../budget-checker.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 
 // ---------------------------------------------------------------------------
@@ -45,6 +47,28 @@ function makeCostCalculator(cost = 0.0000368): jest.Mocked<CostCalculatorService
   } as unknown as jest.Mocked<CostCalculatorService>;
 }
 
+function makeBudgetChecker(
+  status: BudgetStatus['status'] = 'ok',
+  pct = 10,
+): jest.Mocked<BudgetCheckerService> {
+  const result: BudgetStatus =
+    status === 'ok' && pct === 10
+      ? { status: 'ok', pct: 10, monthlySpend: 1, monthlyBudget: 10 }
+      : status === 'warning'
+        ? { status: 'warning', pct, monthlySpend: pct, monthlyBudget: 100 }
+        : { status: 'exceeded', pct, monthlySpend: pct, monthlyBudget: 100 };
+  return {
+    checkBudget: jest.fn().mockResolvedValue(result),
+  } as unknown as jest.Mocked<BudgetCheckerService>;
+}
+
+function makeRedis(): jest.Mocked<Pick<Redis, 'get' | 'set'>> {
+  return {
+    get: jest.fn().mockResolvedValue(null),
+    set: jest.fn().mockResolvedValue('OK'),
+  } as unknown as jest.Mocked<Pick<Redis, 'get' | 'set'>>;
+}
+
 // ---------------------------------------------------------------------------
 // UsageJob processor tests
 // ---------------------------------------------------------------------------
@@ -52,12 +76,21 @@ function makeCostCalculator(cost = 0.0000368): jest.Mocked<CostCalculatorService
 describe('UsageJob', () => {
   let usageRepo: jest.Mocked<UsageRepository>;
   let costCalculator: jest.Mocked<CostCalculatorService>;
+  let budgetChecker: jest.Mocked<BudgetCheckerService>;
+  let mockRedis: jest.Mocked<Pick<Redis, 'get' | 'set'>>;
   let job: UsageJob;
 
   beforeEach(() => {
     usageRepo = makeUsageRepo();
     costCalculator = makeCostCalculator();
-    job = new UsageJob(usageRepo, costCalculator);
+    budgetChecker = makeBudgetChecker();
+    mockRedis = makeRedis();
+    job = new UsageJob(
+      usageRepo,
+      costCalculator,
+      budgetChecker,
+      mockRedis as unknown as Redis,
+    );
   });
 
   it('calls createRequest with the correct job data', async () => {
@@ -134,6 +167,62 @@ describe('UsageJob', () => {
     );
     // upsertDailyUsage should NOT be called if createRequest fails
     expect(usageRepo.upsertDailyUsage).not.toHaveBeenCalled();
+  });
+
+  it('logs a warning when budget status is warning (80%+)', async () => {
+    budgetChecker = makeBudgetChecker('warning', 85);
+    job = new UsageJob(
+      usageRepo,
+      costCalculator,
+      budgetChecker,
+      mockRedis as unknown as Redis,
+    );
+    const warnSpy = jest
+      .spyOn(
+        (job as unknown as { logger: { warn: jest.Mock } }).logger,
+        'warn',
+      )
+      .mockImplementation(() => undefined);
+
+    await job.process(makeJob(makeJobData()));
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('85.0%'),
+    );
+    // No Redis key set for warnings
+    expect(mockRedis.set).not.toHaveBeenCalled();
+  });
+
+  it('logs an error and sets Redis budget:exceeded key when budget is exceeded', async () => {
+    budgetChecker = makeBudgetChecker('exceeded', 105);
+    job = new UsageJob(
+      usageRepo,
+      costCalculator,
+      budgetChecker,
+      mockRedis as unknown as Redis,
+    );
+    const errorSpy = jest
+      .spyOn(
+        (job as unknown as { logger: { error: jest.Mock } }).logger,
+        'error',
+      )
+      .mockImplementation(() => undefined);
+
+    const data = makeJobData();
+    await job.process(makeJob(data));
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('EXCEEDED'),
+    );
+    expect(mockRedis.set).toHaveBeenCalledWith(
+      `tenant:${data.tenantId}:budget:exceeded`,
+      '1',
+      'EX',
+      expect.any(Number),
+    );
+    // TTL must be positive (seconds until end of month)
+    const ttl = (mockRedis.set as jest.Mock).mock.calls[0][3] as number;
+    expect(ttl).toBeGreaterThan(0);
   });
 });
 

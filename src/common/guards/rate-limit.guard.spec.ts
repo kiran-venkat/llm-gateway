@@ -5,6 +5,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { Redis } from 'ioredis';
 import { RateLimitGuard } from './rate-limit.guard';
 import { RateLimitService } from '../../modules/rate-limit/rate-limit.service';
 import { ProviderConfigsRepository } from '../../modules/providers/provider-configs.repository';
@@ -100,6 +101,12 @@ function makeMockRegistry(): jest.Mocked<AdapterRegistry> {
   } as unknown as jest.Mocked<AdapterRegistry>;
 }
 
+function makeMockRedis(budgetExceeded = false): jest.Mocked<Pick<Redis, 'get'>> {
+  return {
+    get: jest.fn().mockResolvedValue(budgetExceeded ? '1' : null),
+  } as unknown as jest.Mocked<Pick<Redis, 'get'>>;
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -109,12 +116,19 @@ describe('RateLimitGuard', () => {
   let rateLimitService: jest.Mocked<RateLimitService>;
   let repo: jest.Mocked<ProviderConfigsRepository>;
   let registry: jest.Mocked<AdapterRegistry>;
+  let mockRedis: jest.Mocked<Pick<Redis, 'get'>>;
 
   beforeEach(() => {
     rateLimitService = makeMockRateLimitService();
     repo = makeMockRepo();
     registry = makeMockRegistry();
-    guard = new RateLimitGuard(rateLimitService, repo, registry);
+    mockRedis = makeMockRedis(false);
+    guard = new RateLimitGuard(
+      rateLimitService,
+      repo,
+      registry,
+      mockRedis as unknown as Redis,
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -240,14 +254,10 @@ describe('RateLimitGuard', () => {
 
   // -------------------------------------------------------------------------
   // 6. Guard order: RateLimitGuard reads req.tenant set by AuthGuard
-  //    Validated indirectly: InternalServerErrorException = guard ran without
-  //    req.tenant, which AuthGuard would have set.
   // -------------------------------------------------------------------------
 
   it('AuthGuard and RateLimitGuard are distinct @Injectable() classes', () => {
     expect(AuthGuard).not.toBe(RateLimitGuard);
-    // Both are NestJS @Injectable() guards — order is enforced at the
-    // controller via @UseGuards(AuthGuard, RateLimitGuard).
     expect(guard).toBeInstanceOf(RateLimitGuard);
   });
 
@@ -284,5 +294,87 @@ describe('RateLimitGuard', () => {
     await guard.canActivate(ctx);
 
     expect(rateLimitService.checkTpm).not.toHaveBeenCalled();
+  });
+
+  // -------------------------------------------------------------------------
+  // 9. Budget exceeded → 402 PAYMENT_REQUIRED
+  // -------------------------------------------------------------------------
+
+  it('throws 402 with budget_exceeded error when Redis budget:exceeded key is set', async () => {
+    mockRedis = makeMockRedis(true); // budget exceeded flag in Redis
+    guard = new RateLimitGuard(
+      rateLimitService,
+      repo,
+      registry,
+      mockRedis as unknown as Redis,
+    );
+    repo.findByTenantAndProvider.mockResolvedValue(makeConfig());
+    rateLimitService.checkRpm.mockResolvedValue(
+      makeRateLimitResult({ allowed: true }),
+    );
+    const ctx = makeContext();
+
+    await expect(guard.canActivate(ctx)).rejects.toThrow(HttpException);
+
+    try {
+      await guard.canActivate(ctx);
+    } catch (err: unknown) {
+      const ex = err as HttpException;
+      expect(ex.getStatus()).toBe(HttpStatus.PAYMENT_REQUIRED);
+      const body = ex.getResponse() as Record<string, unknown>;
+      expect(body['error']).toBe('budget_exceeded');
+      expect(body['message']).toBe('Monthly budget limit reached');
+      expect(body['request_id']).toBe('req-abc-123');
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // 10. No budget key in Redis → proceeds normally
+  // -------------------------------------------------------------------------
+
+  it('proceeds normally when budget:exceeded key is absent from Redis', async () => {
+    repo.findByTenantAndProvider.mockResolvedValue(makeConfig());
+    rateLimitService.checkRpm.mockResolvedValue(
+      makeRateLimitResult({ allowed: true }),
+    );
+    // mockRedis.get returns null by default (key absent)
+
+    const ctx = makeContext();
+    const result = await guard.canActivate(ctx);
+
+    expect(result).toBe(true);
+    expect(mockRedis.get).toHaveBeenCalledWith(
+      `tenant:${TENANT_ID}:budget:exceeded`,
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // 11. Budget check happens after RPM (RPM slot consumed before budget block)
+  // -------------------------------------------------------------------------
+
+  it('checks budget after RPM — RPM check runs before Redis budget GET', async () => {
+    const callOrder: string[] = [];
+    mockRedis = makeMockRedis(true);
+    guard = new RateLimitGuard(
+      rateLimitService,
+      repo,
+      registry,
+      mockRedis as unknown as Redis,
+    );
+    repo.findByTenantAndProvider.mockResolvedValue(makeConfig());
+    rateLimitService.checkRpm.mockImplementation(async () => {
+      callOrder.push('rpm');
+      return makeRateLimitResult({ allowed: true });
+    });
+    (mockRedis.get as jest.Mock).mockImplementation(async () => {
+      callOrder.push('budget');
+      return '1';
+    });
+
+    await expect(guard.canActivate(makeContext())).rejects.toThrow(
+      HttpException,
+    );
+
+    expect(callOrder).toEqual(['rpm', 'budget']);
   });
 });

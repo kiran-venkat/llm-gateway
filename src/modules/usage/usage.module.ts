@@ -5,6 +5,7 @@ import { CacheJob } from './jobs/cache.job';
 import { UsageJob } from './jobs/usage.job';
 import { CostCalculatorService } from './cost-calculator.service';
 import { UsageRepository } from './usage.repository';
+import { BudgetCheckerService } from './budget-checker.service';
 
 @Module({
   imports: [
@@ -12,7 +13,7 @@ import { UsageRepository } from './usage.repository';
     BullModule.registerQueue({ name: 'usage' }),
     CacheModule,
   ],
-  providers: [CacheJob, UsageJob, CostCalculatorService, UsageRepository],
-  exports: [CostCalculatorService, UsageRepository],
+  providers: [CacheJob, UsageJob, CostCalculatorService, UsageRepository, BudgetCheckerService],
+  exports: [CostCalculatorService, UsageRepository, BudgetCheckerService],
 })
 export class UsageModule {}

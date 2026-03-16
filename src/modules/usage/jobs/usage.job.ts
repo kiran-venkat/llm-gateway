@@ -1,8 +1,14 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
+import { InjectRedis } from '@nestjs-modules/ioredis';
 import { Job } from 'bull';
+import { Redis } from 'ioredis';
 import { UsageRepository } from '../usage.repository';
 import { CostCalculatorService } from '../cost-calculator.service';
+import {
+  BudgetCheckerService,
+  secondsUntilEndOfMonth,
+} from '../budget-checker.service';
 
 export interface UsageJobData {
   requestId: string;
@@ -31,6 +37,8 @@ export class UsageJob {
   constructor(
     private readonly usageRepo: UsageRepository,
     private readonly costCalculator: CostCalculatorService,
+    private readonly budgetChecker: BudgetCheckerService,
+    @InjectRedis() private readonly redis: Redis,
   ) {}
 
   @Process('track-usage')
@@ -63,5 +71,35 @@ export class UsageJob {
         `${data.promptTokens}+${data.completionTokens} tokens ` +
         `$${data.costUsd.toFixed(8)}`,
     );
+
+    // Step 5: Budget check — log warn/error, set Redis block key when exceeded.
+    // Fire after DB writes so the sum in usage_daily already includes this request.
+    const budget = await this.budgetChecker.checkBudget(
+      data.tenantId,
+      data.costUsd,
+    );
+
+    if (budget.status === 'warning') {
+      this.logger.warn(
+        `Tenant ${data.tenantId} at ${budget.pct!.toFixed(1)}% of monthly budget ` +
+          `($${budget.monthlySpend!.toFixed(4)} / $${budget.monthlyBudget})`,
+      );
+    }
+
+    if (budget.status === 'exceeded') {
+      this.logger.error(
+        `Tenant ${data.tenantId} EXCEEDED monthly budget ` +
+          `($${budget.monthlySpend!.toFixed(4)} / $${budget.monthlyBudget})`,
+      );
+      // Set a Redis flag that RateLimitGuard checks on every request.
+      // TTL = seconds until end of current month so the block auto-lifts
+      // at the start of the new billing period.
+      await this.redis.set(
+        `tenant:${data.tenantId}:budget:exceeded`,
+        '1',
+        'EX',
+        secondsUntilEndOfMonth(),
+      );
+    }
   }
 }
