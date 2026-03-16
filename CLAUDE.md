@@ -427,3 +427,13 @@ Reason: Concatenating user-supplied values into a SQL string creates SQL injecti
 vulnerabilities. Prisma.sql`AND provider = ${value}` is a tagged template that
 parameterises the value safely. Prisma.empty is the zero-fragment identity — use it
 when a filter is absent. Never build WHERE clauses with string interpolation.
+
+### CostPage by_model breakdown not implemented — API only returns by_provider
+Date: Phase 8, T46
+Reason: GET /api/v1/analytics/cost only returns by_provider breakdown (CostByProvider[]).
+There is no by_model field in the response. Both the pie chart and horizontal bar chart
+on CostPage use by_provider data. The data table shows Provider | Cost | % of Total.
+Model-level cost breakdown is a future task requiring a new backend endpoint
+(e.g. GET /api/v1/analytics/cost/by-model) and a new repository query joining
+usage_daily grouped by (provider, model). Do not attempt to derive model costs
+from the existing cost endpoint — the data is not there.
