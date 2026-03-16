@@ -5,11 +5,11 @@ import {
   HttpStatus,
   Injectable,
   InternalServerErrorException,
-  Logger,
 } from '@nestjs/common';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import { Request } from 'express';
 import { Redis } from 'ioredis';
+import { AppLoggerService } from '../logger/app-logger.service';
 import { AuthContext } from '../interfaces/auth-context.interface';
 import { RateLimitService } from '../../modules/rate-limit/rate-limit.service';
 import { ProviderConfigsRepository } from '../../modules/providers/provider-configs.repository';
@@ -36,7 +36,7 @@ function inferProviderFromModel(model: string): string {
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
-  private readonly logger = new Logger(RateLimitGuard.name);
+  private readonly logger = new AppLoggerService(RateLimitGuard.name);
 
   constructor(
     private readonly rateLimitService: RateLimitService,
@@ -69,9 +69,11 @@ export class RateLimitGuard implements CanActivate {
       provider,
     );
     if (!config) {
-      this.logger.debug(
-        `No provider config for ${tenant.tenantId}/${provider} — skipping rate limit`,
-      );
+      this.logger.debug('No provider config — skipping rate limit', {
+        requestId: req.requestId,
+        tenantId: tenant.tenantId,
+        provider,
+      });
       return true;
     }
 
@@ -93,6 +95,13 @@ export class RateLimitGuard implements CanActivate {
       config.rateLimitRpm,
     );
     if (!rpmResult.allowed) {
+      this.logger.warn('Rate limit exceeded', {
+        requestId: req.requestId,
+        tenantId: tenant.tenantId,
+        provider,
+        limitType: 'rpm',
+        remaining: 0,
+      });
       throw new HttpException(
         {
           error: 'rate_limit_exceeded',
@@ -131,6 +140,13 @@ export class RateLimitGuard implements CanActivate {
         config.rateLimitTpm,
       );
       if (!tpmResult.allowed) {
+        this.logger.warn('Rate limit exceeded', {
+          requestId: req.requestId,
+          tenantId: tenant.tenantId,
+          provider,
+          limitType: 'tpm',
+          remaining: 0,
+        });
         throw new HttpException(
           {
             error: 'rate_limit_exceeded',

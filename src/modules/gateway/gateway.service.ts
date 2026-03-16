@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
+import { AppLoggerService } from '../../common/logger/app-logger.service';
 import { Queue } from 'bull';
 import { Response } from 'express';
 import { AuthContext } from '../../common/interfaces/auth-context.interface';
@@ -25,7 +26,7 @@ export interface GatewayCompleteResult {
 
 @Injectable()
 export class GatewayService {
-  private readonly logger = new Logger(GatewayService.name);
+  private readonly logger = new AppLoggerService(GatewayService.name);
 
   constructor(
     private readonly routerService: RouterService,
@@ -90,10 +91,7 @@ export class GatewayService {
         backoff: { type: 'exponential', delay: 1000 },
       })
       .catch((err: unknown) =>
-        this.logger.error(
-          `Failed to enqueue usage job for request ${data.requestId}`,
-          err,
-        ),
+        this.logger.error('Failed to enqueue usage job', err),
       );
   }
 
@@ -101,10 +99,7 @@ export class GatewayService {
     void this.cacheQueue
       .add('cache-response', data)
       .catch((err: unknown) =>
-        this.logger.warn(
-          `Failed to enqueue cache job for key ${data.cacheKey}`,
-          err,
-        ),
+        this.logger.error('Failed to enqueue cache job', err),
       );
   }
 
@@ -160,6 +155,18 @@ export class GatewayService {
       latencyMs: durationMs,
       stream: false,
       createdAt: new Date().toISOString(),
+    });
+
+    this.logger.log('Request completed', {
+      requestId,
+      tenantId: ctx.tenantId,
+      provider: decision.provider,
+      model: decision.model,
+      promptTokens: response.promptTokens,
+      completionTokens: response.completionTokens,
+      costUsd,
+      latencyMs: durationMs,
+      cacheHit: false,
     });
 
     if (cacheKey) {
