@@ -1,9 +1,9 @@
 # LLM Gateway — Project Index
 
 ## CURRENT STATE
-Last session ended: Phase 6 COMPLETE — T34–T38 done
-Next task: T39 (Phase 7 start)
-Tests: 426
+Last session ended: Phase 7 COMPLETE — T39–T42 done
+Next task: T43 (Phase 8 start)
+Tests: 457
 Branch: dev
 
 ## What We Are Building
@@ -77,7 +77,8 @@ Phase 3: COMPLETE (T19-T23)
 Phase 4: COMPLETE (T24-T28)
 Phase 5: COMPLETE (T29-T33)
 Phase 6: COMPLETE (T34-T38)
-Phase 7: IN PROGRESS — T39 next
+Phase 7: COMPLETE (T39-T42)
+Phase 8: IN PROGRESS — T43 next
 
 ---
 
@@ -381,3 +382,48 @@ Reason: DB and Redis are independent subsystems. Checking them sequentially woul
 double probe latency when both are healthy, and a slow DB check would delay reporting
 a Redis failure (and vice versa). Promise.allSettled ensures both checks run
 concurrently and both results are always reported regardless of individual failures.
+
+### Analytics aggregations query usage_daily, request log queries requests table
+Date: Phase 7, T39-T41
+Reason: usage_daily is pre-aggregated — one row per (tenant, provider, model, date).
+A SUM/GROUP BY over it is O(providers × models × days), typically tens of rows.
+The same aggregation over the raw requests table would be O(total requests) — millions
+of rows at scale, degrading linearly with volume. The requests table is only queried
+for the paginated request log (T40), which is a bounded point-lookup (LIMIT N with
+the (tenantId, createdAt DESC) index) — never an unbounded aggregation.
+
+### Parallel COUNT+SELECT share one buildRequestWhere() to prevent filter drift
+Date: Phase 7, T40
+Reason: getRequests() and countRequests() must apply identical WHERE conditions or
+the total count and the returned page will disagree. Both call the same private
+buildRequestWhere() method — any change to filters is reflected in both queries
+automatically. Never inline the WHERE conditions separately in each method.
+
+### Weighted avg_latency_ms — weight by request count, not average of averages
+Date: Phase 7, T39
+Reason: usage_daily stores avg_latency_ms per (provider, model, date). Averaging
+those per-day averages across days ignores the fact that days with 1000 requests
+should count more than days with 10. The correct formula is:
+  avg = SUM(avg_latency_ms * requests) / SUM(requests)
+A plain average of daily averages is statistically wrong when request volume varies
+across days. Do not change to simple mean.
+
+### pct in cost breakdown derived from fetched rows — no third DB query
+Date: Phase 7, T41
+Reason: total_cost_usd is computed as SUM of by_provider rows (already fetched).
+pct for each entry = row.cost_usd / total * 100. This avoids a third DB round-trip
+for a global SUM. If total is 0, pct = 0 for all rows (no division by zero).
+
+### Prisma $queryRaw always returns Decimal as opaque object — convert with Number()
+Date: Phase 7, T39-T41
+Reason: Prisma wraps DECIMAL/NUMERIC columns in a Decimal object. JSON.stringify()
+on a Decimal produces { "d": [...] } (the internal representation), not a plain number.
+All $queryRaw results must call Number(row.field) before returning from the repository.
+This applies to cost_usd, avg_latency_ms, and any other DECIMAL column.
+
+### Prisma.sql fragments for optional $queryRaw filters — never string concatenation
+Date: Phase 7, T39-T41
+Reason: Concatenating user-supplied values into a SQL string creates SQL injection
+vulnerabilities. Prisma.sql`AND provider = ${value}` is a tagged template that
+parameterises the value safely. Prisma.empty is the zero-fragment identity — use it
+when a filter is absent. Never build WHERE clauses with string interpolation.
