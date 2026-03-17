@@ -1,6 +1,10 @@
-import { webcrypto } from 'crypto';
-// @ts-ignore
-globalThis.crypto = webcrypto;
+// Polyfill crypto for Node 18 compatibility (Node 20 already has it)
+if (!globalThis.crypto) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { webcrypto } = require('crypto');
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  globalThis.crypto = webcrypto;
+}
 
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
