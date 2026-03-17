@@ -30,9 +30,19 @@ async function bootstrap() {
   // exposeHeaders lists the custom gateway headers the browser needs to read
   // from fetch() responses (X-Cache-Hit, X-Latency-Ms, etc.).
   app.enableCors({
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id', 'X-No-Cache', 'X-Cache-Ttl', 'X-Tag'],
+    origin: [
+      'http://localhost:5173',
+      'http://llm-gateway-dashboard-937083180480.s3-website.ap-south-1.amazonaws.com',
+    ],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Request-Id',
+      'X-Provider',
+      'X-Tag',
+      'X-No-Cache',
+    ],
     exposedHeaders: [
       'X-Request-Id',
       'X-Cache-Hit',
@@ -41,10 +51,11 @@ async function bootstrap() {
       'X-Gateway-Model',
       'X-Latency-Ms',
       'X-Cost-Usd',
+      'X-RateLimit-Limit-Rpm',
       'X-RateLimit-Remaining-Rpm',
       'X-RateLimit-Reset',
     ],
-    credentials: false,
+    credentials: true,
   });
 
   const nodeEnv = process.env.NODE_ENV ?? 'production';
@@ -93,7 +104,9 @@ async function bootstrap() {
     logger.log(`${signal} received — draining jobs and closing server`);
 
     const forceExit = setTimeout(() => {
-      logger.error(`Graceful shutdown timed out after ${SHUTDOWN_TIMEOUT_MS}ms — forcing exit`);
+      logger.error(
+        `Graceful shutdown timed out after ${SHUTDOWN_TIMEOUT_MS}ms — forcing exit`,
+      );
       process.exit(1);
     }, SHUTDOWN_TIMEOUT_MS);
 
