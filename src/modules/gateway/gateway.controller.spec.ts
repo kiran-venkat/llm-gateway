@@ -127,6 +127,8 @@ describe('GatewayController — rate limit headers', () => {
       req,
       undefined,
       undefined,
+      undefined,
+      undefined,
       res as unknown as Response,
     );
 
@@ -153,6 +155,8 @@ describe('GatewayController — rate limit headers', () => {
       makeReq(rateLimit),
       undefined,
       undefined,
+      undefined,
+      undefined,
       res as unknown as Response,
     );
 
@@ -174,6 +178,8 @@ describe('GatewayController — rate limit headers', () => {
       makeDto(),
       makeCtx(),
       makeReq(rateLimit),
+      undefined,
+      undefined,
       undefined,
       undefined,
       res as unknown as Response,
@@ -199,6 +205,8 @@ describe('GatewayController — rate limit headers', () => {
       makeDto(),
       makeCtx(),
       makeReq(undefined), // no rateLimit
+      undefined,
+      undefined,
       undefined,
       undefined,
       res as unknown as Response,
@@ -232,6 +240,8 @@ describe('GatewayController — rate limit headers', () => {
       makeDto({ stream: true }),
       makeCtx(),
       makeReq(rateLimit),
+      undefined,
+      undefined,
       undefined,
       undefined,
       res as unknown as Response,

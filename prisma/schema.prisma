@@ -107,13 +107,30 @@ model Request {
   requestHash      String?  @db.VarChar(64)
   createdAt        DateTime @default(now()) @db.Timestamptz()
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  apiKey ApiKey @relation(fields: [apiKeyId], references: [id])
+  tenant Tenant        @relation(fields: [tenantId], references: [id])
+  apiKey ApiKey        @relation(fields: [apiKeyId], references: [id])
+  spans  RequestSpan[]
 
   @@index([tenantId, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
   @@index([tenantId, provider])
   @@map("requests")
+}
+
+model RequestSpan {
+  id              String    @id @default(uuid()) @db.Uuid
+  sessionId       String    @db.VarChar(64)
+  tenantId        String    @db.Uuid
+  parentRequestId String?   @db.Uuid
+  requestId       String    @db.Uuid
+  userLabel       String?   @db.VarChar(255)
+  createdAt       DateTime  @default(now()) @db.Timestamptz()
+
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, sessionId])
+  @@index([requestId])
+  @@map("request_spans")
 }
 
 model UsageDaily {

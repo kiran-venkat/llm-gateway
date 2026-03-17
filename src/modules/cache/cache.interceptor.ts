@@ -139,6 +139,8 @@ export class CacheInterceptor implements NestInterceptor {
         latencyMs: 0,
         stream: false,
         createdAt: new Date().toISOString(),
+        sessionId: (req.headers['x-session-id'] as string | undefined) ?? randomUUID(),
+        userLabel: req.headers['x-user-id'] as string | undefined,
       };
       void this.usageQueue
         .add('track-usage', payload, {

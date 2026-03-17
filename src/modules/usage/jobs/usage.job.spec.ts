@@ -26,6 +26,7 @@ function makeJobData(overrides: Partial<UsageJobData> = {}): UsageJobData {
     latencyMs: 420,
     stream: false,
     createdAt: '2026-03-15T10:00:00.000Z',
+    sessionId: 'session-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
     ...overrides,
   };
 }
@@ -38,10 +39,13 @@ function makeUsageRepo(): jest.Mocked<UsageRepository> {
   return {
     createRequest: jest.fn().mockResolvedValue(undefined),
     upsertDailyUsage: jest.fn().mockResolvedValue(undefined),
+    createRequestSpan: jest.fn().mockResolvedValue(undefined),
   } as unknown as jest.Mocked<UsageRepository>;
 }
 
-function makeCostCalculator(cost = 0.0000368): jest.Mocked<CostCalculatorService> {
+function makeCostCalculator(
+  cost = 0.0000368,
+): jest.Mocked<CostCalculatorService> {
   return {
     calculateCost: jest.fn().mockResolvedValue(cost),
   } as unknown as jest.Mocked<CostCalculatorService>;
@@ -62,11 +66,15 @@ function makeBudgetChecker(
   } as unknown as jest.Mocked<BudgetCheckerService>;
 }
 
-function makeRedis(): jest.Mocked<Pick<Redis, 'get' | 'set'>> {
+function makeRedis(): jest.Mocked<
+  Pick<Redis, 'get' | 'set' | 'zadd' | 'expire'>
+> {
   return {
     get: jest.fn().mockResolvedValue(null),
     set: jest.fn().mockResolvedValue('OK'),
-  } as unknown as jest.Mocked<Pick<Redis, 'get' | 'set'>>;
+    zadd: jest.fn().mockResolvedValue(1),
+    expire: jest.fn().mockResolvedValue(1),
+  } as unknown as jest.Mocked<Pick<Redis, 'get' | 'set' | 'zadd' | 'expire'>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -77,7 +85,7 @@ describe('UsageJob', () => {
   let usageRepo: jest.Mocked<UsageRepository>;
   let costCalculator: jest.Mocked<CostCalculatorService>;
   let budgetChecker: jest.Mocked<BudgetCheckerService>;
-  let mockRedis: jest.Mocked<Pick<Redis, 'get' | 'set'>>;
+  let mockRedis: jest.Mocked<Pick<Redis, 'get' | 'set' | 'zadd' | 'expire'>>;
   let job: UsageJob;
 
   beforeEach(() => {
@@ -185,6 +193,49 @@ describe('UsageJob', () => {
     expect(mockRedis.set).not.toHaveBeenCalled();
   });
 
+  it('creates a RequestSpan with correct sessionId, requestId, and userLabel', async () => {
+    const data = makeJobData({
+      sessionId: 'session-test-1111-2222-3333-444444444444',
+      userLabel: 'alice',
+    });
+    await job.process(makeJob(data));
+
+    expect(usageRepo.createRequestSpan).toHaveBeenCalledWith({
+      sessionId: 'session-test-1111-2222-3333-444444444444',
+      tenantId: data.tenantId,
+      requestId: data.requestId,
+      userLabel: 'alice',
+    });
+  });
+
+  it('creates a RequestSpan without userLabel when not supplied', async () => {
+    const data = makeJobData({ userLabel: undefined });
+    await job.process(makeJob(data));
+
+    expect(usageRepo.createRequestSpan).toHaveBeenCalledWith(
+      expect.objectContaining({ userLabel: undefined }),
+    );
+  });
+
+  it('ZADDs latency sample to Redis sorted set after recording usage', async () => {
+    const data = makeJobData({
+      latencyMs: 420,
+      tenantId: 'tenant-11111111-2222-3333-4444-555555555555',
+      provider: 'anthropic',
+      model: 'claude-haiku-4-5-20251001',
+      createdAt: '2026-03-15T10:00:00.000Z',
+    });
+    await job.process(makeJob(data));
+
+    const expectedKey = `tenant:${data.tenantId}:latency:${data.provider}:${data.model}:2026-03-15`;
+    expect(mockRedis.zadd).toHaveBeenCalledWith(
+      expectedKey,
+      420,
+      data.requestId,
+    );
+    expect(mockRedis.expire).toHaveBeenCalledWith(expectedKey, 48 * 60 * 60);
+  });
+
   it('sets Redis budget:exceeded key when budget is exceeded', async () => {
     budgetChecker = makeBudgetChecker('exceeded', 105);
     job = new UsageJob(
@@ -286,7 +337,8 @@ describe('UsageRepository', () => {
 
     // $executeRaw tagged template calls the mock as f(stringsArray, v1, v2, ...)
     // Rest args (index 1+) are the interpolated values in order.
-    const [, ...values] = (prisma.$executeRaw as jest.Mock).mock.calls[0] as unknown[];
+    const [, ...values] = (prisma.$executeRaw as jest.Mock).mock
+      .calls[0] as unknown[];
     expect(values).toContain(data.tenantId);
     expect(values).toContain(data.provider);
     expect(values).toContain(data.model);
