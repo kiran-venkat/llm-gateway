@@ -61,6 +61,10 @@ prisma/migrations/dev.db
 # Claude Code
 .claude/
 
+# Elastic Beanstalk
+.elasticbeanstalk/
+*.zip
+
 # Personal architecture notes (not for the repo)
 docs/
 
@@ -75,3 +79,8 @@ build/
 .env
 .env.local
 .env.*.localopenapi.json
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
