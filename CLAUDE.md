@@ -564,3 +564,93 @@ Sprint S2: IN PROGRESS (T60–T66) — Deep observability — T60 ✅, T61 ✅, 
 Sprint S3: PLANNED (T67–T73) — Budget intelligence
 Sprint S4: PLANNED (T74–T81) — AI control plane
 Sprint S5: PLANNED (T82–T86) — Semantic cache
+
+---
+
+## PRODUCTION DEPLOYMENT
+
+### Infrastructure
+- Platform: AWS Elastic Beanstalk (Docker, Amazon Linux 2)
+- Region: ap-south-1 (Mumbai)
+- Instance: t3.micro EC2 (single instance, no load balancer)
+- Database: RDS PostgreSQL 16 (db.t3.micro)
+- Cache: ElastiCache Redis 7 (cache.t3.micro)
+- Dashboard: S3 Static Website
+
+### Live URLs
+- API: http://llm-gateway-prod.eba-cd8vjbc9.ap-south-1.elasticbeanstalk.com
+- Dashboard: http://llm-gateway-dashboard-937083180480.s3-website.ap-south-1.amazonaws.com
+- Health: /health
+- Docs: /api/docs
+
+### AWS Resource IDs
+- EB Environment: e-8mrjfynmsv
+- EB Application: llm-gateway
+- RDS Identifier: llm-gateway-db
+- RDS Endpoint: llm-gateway-db.c9yy6u48ofas.ap-south-1.rds.amazonaws.com
+- ElastiCache: llm-gateway-redis
+- Redis Endpoint: llm-gateway-redis.rprakl.0001.aps1.cache.amazonaws.com
+- S3 Bucket: llm-gateway-dashboard-937083180480
+- EC2 Instance: i-04bf5e2627076b541
+- EC2 Public IP: 15.207.135.248
+- EB Security Group: sg-06766696fa4fc4531
+- RDS/Redis Security Group: sg-0a68ef2d0064bc41f
+
+### Production Credentials (DO NOT COMMIT)
+- DB Password: GatewayProd2026Secure
+- Admin Secret: LLMGatewayAdmin2026
+- Encryption Key: 97d72adb59135cea74b1ab63036cc54735ffc1b91c7fd9296f4cc5633f8ca5ad
+- Production API Key: lgk_cc2fd1f97791fe77a4fb4c1a59cd54c130f6ddfb7c8fb650adf52cfde4ad1616
+- Production Tenant ID: 32142ec5-691a-4ab2-9797-cdb8e8fbff58
+
+### Security Group Rules
+- sg-06766696fa4fc4531 (EB): allows inbound 80, 3000 from 0.0.0.0/0
+- sg-0a68ef2d0064bc41f (RDS/Redis): allows inbound 5432 and 6379
+  from sg-06766696fa4fc4531 only
+- Your local IP (49.206.98.145) allowed on 5432 for migrations
+
+### Deployment Commands
+```bash
+# Check status
+eb status llm-gateway-prod
+
+# Deploy backend changes
+git checkout main && git merge dev && git push origin main
+eb deploy
+
+# Deploy dashboard changes
+cd dashboard
+VITE_API_URL=http://llm-gateway-prod.eba-cd8vjbc9.ap-south-1.elasticbeanstalk.com npm run build
+aws s3 sync dist/ s3://llm-gateway-dashboard-937083180480
+
+# Check logs
+eb logs --all
+
+# Run migrations
+DATABASE_URL=postgresql://gateway:GatewayProd2026Secure@llm-gateway-db.c9yy6u48ofas.ap-south-1.rds.amazonaws.com:5432/llmgateway npx prisma migrate deploy
+
+# SSH into EC2
+eb ssh llm-gateway-prod
+```
+
+### Known Issues Fixed
+- Node 18 crypto polyfill: globalThis.crypto guard in main.ts
+- docker-compose.yml renamed to docker-compose.local.yml
+  (EB was running local postgres/redis instead of RDS/ElastiCache)
+- Dockerfile uses node:20-alpine (not 18)
+- RDS password has no special characters (! causes zsh issues)
+
+### Monthly Cost Estimate
+```
+RDS db.t3.micro:        FREE (12 months free tier)
+ElastiCache t3.micro:   FREE (12 months free tier)
+EC2 t3.micro:           ~$8-10/month
+S3 storage + requests:  ~$0.50/month
+Data transfer:          ~$1-2/month
+Total:                  ~$10-12/month
+
+After free tier expires:
+RDS:                    ~$15/month
+ElastiCache:            ~$12/month
+Total:                  ~$37-40/month
+```

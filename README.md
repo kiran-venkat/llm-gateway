@@ -2,6 +2,19 @@
 
 A production-grade API gateway that sits between your applications and LLM providers — OpenAI, Anthropic, and Gemini. It provides a single OpenAI-compatible endpoint with auth, tenant isolation, sliding-window rate limiting, exact-match response caching, cost tracking, and a React dashboard, all without the vendor lock-in of managed solutions like LiteLLM Cloud, Portkey, or Helicone. You own the infrastructure, the data, and the routing logic.
 
+## Live Deployment
+
+Running on AWS (ap-south-1):
+
+| Resource  | URL |
+|-----------|-----|
+| API       | http://llm-gateway-prod.eba-cd8vjbc9.ap-south-1.elasticbeanstalk.com |
+| Dashboard | http://llm-gateway-dashboard-937083180480.s3-website.ap-south-1.amazonaws.com |
+| Health    | http://llm-gateway-prod.eba-cd8vjbc9.ap-south-1.elasticbeanstalk.com/health |
+| API Docs  | http://llm-gateway-prod.eba-cd8vjbc9.ap-south-1.elasticbeanstalk.com/api/docs |
+
+Stack: Elastic Beanstalk (Docker, t3.micro) · RDS PostgreSQL 16 · ElastiCache Redis 7 · S3 static dashboard
+
 ## Architecture
 
 ```
@@ -51,7 +64,7 @@ openssl rand -hex 32
 
 ```bash
 # Start PostgreSQL (port 5433) and Redis
-docker-compose up postgres redis -d
+docker-compose -f docker-compose.local.yml up postgres redis -d
 
 npm install
 npx prisma migrate dev --name init
@@ -133,7 +146,7 @@ Every table has a `tenantId` UUID column. `BaseRepository` enforces it on every 
 ### Running tests
 
 ```bash
-npm test            # 474 unit tests (3 skipped — require live provider keys)
+npm test            # 490 unit tests (3 skipped — require live provider keys)
 npm run test:e2e    # integration tests (requires running DB + Redis)
 npm run test:cov    # coverage report
 ```
