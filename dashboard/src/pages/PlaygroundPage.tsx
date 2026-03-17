@@ -140,8 +140,8 @@ function MetadataPanel({
   const hasData = Object.keys(headers).length > 0
 
   const cacheHit = headers['x-cache-hit']
-  const latencyMs = headers['x-latency-ms'] ?? lastRequest?.latency_ms?.toString()
-  const costUsd = headers['x-cost-usd'] ?? lastRequest?.cost_usd?.toString()
+  const latencyMs = headers['x-latency-ms'] ?? lastRequest?.latencyMs?.toString()
+  const costUsd = headers['x-cost-usd'] ?? lastRequest?.costUsd?.toString()
 
   return (
     <div className="p-4 space-y-5">
@@ -188,11 +188,11 @@ function MetadataPanel({
         <div>
           <div className="text-xs text-slate-500 mb-2">Token usage</div>
           <div className="grid grid-cols-3 gap-2">
-            <StatBox label="Prompt" value={String(lastRequest.prompt_tokens)} />
-            <StatBox label="Compl." value={String(lastRequest.completion_tokens)} />
+            <StatBox label="Prompt" value={String(lastRequest.promptTokens)} />
+            <StatBox label="Compl." value={String(lastRequest.completionTokens)} />
             <StatBox
               label="Total"
-              value={String(lastRequest.prompt_tokens + lastRequest.completion_tokens)}
+              value={String((lastRequest.promptTokens ?? 0) + (lastRequest.completionTokens ?? 0))}
               valueClass="text-blue-400"
             />
           </div>
