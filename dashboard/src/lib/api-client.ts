@@ -209,7 +209,7 @@ export const deleteProvider = (id: string) =>
   api.delete<void>(`/api/v1/providers/${id}`)
 
 export const getProviderStatus = () =>
-  api.get<ProviderStatus[]>('/api/v1/providers/status')
+  api.get<ProviderStatusResponse>('/api/v1/providers/status')
 
 // ---------- non-streaming completion ----------
 

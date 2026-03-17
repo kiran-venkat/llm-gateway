@@ -412,7 +412,7 @@ export default function ProvidersPage() {
     if (!silent) setChecking(true)
     try {
       const res = await getProviderStatus()
-      setStatuses(res.data)
+      setStatuses(res.data.providers)
       setLastChecked(new Date())
     } catch {
       // status check failing is non-fatal — keep last known status
