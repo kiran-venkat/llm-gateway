@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+livekit-agents>=0.8.0
+livekit-plugins-deepgram
+livekit-plugins-silero
+livekit-plugins-openai
+livekit-plugins-turn-detector
+httpx
+pydantic-settings
+python-multipart
+python-dotenv
+python-jose
