@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LLM Voice Gateway Demo</title>
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #161b27;
+      --border: #232b3e;
+      --text: #e2e8f0;
+      --muted: #4e5a73;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --blue: #3b82f6;
+      --red: #ef4444;
+      --user-bubble: #1e40af;
+      --agent-bubble: #1e2638;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ─── Header ─────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .logo-text { font-size: 0.95rem; font-weight: 600; letter-spacing: -0.01em; }
+    .logo-text span { color: var(--blue); }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+      flex-shrink: 0;
+    }
+
+    .dot.listening {
+      background: var(--green);
+      animation: ping 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    .dot.thinking  { background: var(--yellow); }
+    .dot.speaking  { background: var(--blue); }
+    .dot.connected { background: var(--green); }
+
+    @keyframes ping {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50%       { transform: scale(0.75); opacity: 0.6; }
+    }
+
+    .btn {
+      padding: 7px 18px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+    .btn-primary  { background: var(--blue);   color: #fff; }
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    /* ─── Main layout ─────────────────────────── */
+    .main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 272px;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    /* ─── Transcript ──────────────────────────── */
+    .transcript-panel {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 10px 20px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .transcript-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    .transcript-scroll:empty::after {
+      content: "Connect and start speaking to see the conversation here.";
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1.6;
+      text-align: center;
+      margin: auto;
+      max-width: 220px;
+    }
+
+    /* Partial transcript (in-progress, italic) */
+    .msg-partial .msg-bubble {
+      opacity: 0.55;
+      font-style: italic;
+    }
+
+    .msg {
+      display: flex;
+      flex-direction: column;
+      max-width: 78%;
+    }
+    .msg.user  { align-self: flex-end;   align-items: flex-end; }
+    .msg.agent { align-self: flex-start; align-items: flex-start; }
+
+    .msg-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+
+    .msg-bubble {
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
+    .msg.user  .msg-bubble {
+      background: var(--user-bubble);
+      color: #eff6ff;
+      border-bottom-right-radius: 4px;
+    }
+    .msg.agent .msg-bubble {
+      background: var(--agent-bubble);
+      color: var(--text);
+      border-bottom-left-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    /* ─── Metrics sidebar ─────────────────────── */
+    .metrics-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .metrics-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .metric-section {
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0 2px;
+      margin-top: 10px;
+      margin-bottom: 2px;
+    }
+    .metric-section:first-child { margin-top: 0; }
+
+    .metric-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+    }
+
+    .metric-label {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .metric-val {
+      font-size: 0.85rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
+    .metric-val.c-green  { color: var(--green); }
+    .metric-val.c-yellow { color: var(--yellow); }
+    .metric-val.c-blue   { color: var(--blue); }
+    .metric-val.c-text   { color: var(--text); }
+    .metric-val.c-muted  { color: var(--muted); }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 6px 0;
+    }
+
+    /* ─── Error toast ─────────────────────────── */
+    .error-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #7f1d1d;
+      color: #fecaca;
+      border: 1px solid #991b1b;
+      border-radius: 10px;
+      padding: 11px 20px;
+      font-size: 0.82rem;
+      transition: transform 0.25s ease;
+      z-index: 9999;
+      white-space: nowrap;
+    }
+    .error-toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    #audio-sink { display: none; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🎙</div>
+      <div class="logo-text">LLM <span>Voice</span> Gateway</div>
+    </div>
+    <div class="header-right">
+      <div class="status-badge">
+        <div class="dot" id="dot"></div>
+        <span id="status-text">Disconnected</span>
+      </div>
+      <button class="btn btn-primary"    id="btn-connect">Connect</button>
+      <button class="btn btn-secondary"  id="btn-disconnect" disabled>Disconnect</button>
+    </div>
+  </header>
+
+  <div class="main">
+
+    <div class="transcript-panel">
+      <div class="panel-header">Conversation</div>
+      <div class="transcript-scroll" id="transcript"></div>
+    </div>
+
+    <div class="metrics-panel">
+      <div class="panel-header">Latency</div>
+      <div class="metrics-body">
+
+        <div class="metric-section">Last Turn</div>
+        <div class="metric-row">
+          <span class="metric-label">STT</span>
+          <span class="metric-val c-green"  id="m-stt">—</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">LLM TTFB</span>
+          <span class="metric-val c-yellow" id="m-llm">—</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">TTS TTFB</span>
+          <span class="metric-val c-blue"   id="m-tts">—</span>
+        </div>
+        <div class="divider"></div>
+        <div class="metric-row">
+          <span class="metric-label">End-to-End</span>
+          <span class="metric-val c-text"   id="m-e2e">—</span>
+        </div>
+
+        <div class="metric-section">Session Avg</div>
+        <div class="metric-row">
+          <span class="metric-label">Avg STT</span>
+          <span class="metric-val c-green"  id="a-stt">—</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Avg LLM</span>
+          <span class="metric-val c-yellow" id="a-llm">—</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Avg E2E</span>
+          <span class="metric-val c-text"   id="a-e2e">—</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Turns</span>
+          <span class="metric-val c-muted"  id="a-turns">0</span>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <div id="audio-sink"></div>
+  <div class="error-toast" id="error-toast"></div>
+
+  <script>
+    const { Room, RoomEvent, Track, ConnectionState, LocalParticipant } = LivekitClient;
+
+    const API = 'http://localhost:8000';
+
+    let room = null;
+    let pollTimer = null;
+
+    // ─── DOM ──────────────────────────────────────
+    const btnConnect    = document.getElementById('btn-connect');
+    const btnDisconnect = document.getElementById('btn-disconnect');
+    const dot           = document.getElementById('dot');
+    const statusText    = document.getElementById('status-text');
+    const transcriptEl  = document.getElementById('transcript');
+    const audioSink     = document.getElementById('audio-sink');
+    const errorToast    = document.getElementById('error-toast');
+
+    // ─── Helpers ──────────────────────────────────
+    function fmt(ms) {
+      if (ms == null || ms === undefined) return '—';
+      return Math.round(ms) + ' ms';
+    }
+
+    function setStatus(cls, label) {
+      dot.className = 'dot ' + (cls || '');
+      statusText.textContent = label;
+    }
+
+    let errorTimer = null;
+    function showError(msg) {
+      errorToast.textContent = msg;
+      errorToast.classList.add('show');
+      clearTimeout(errorTimer);
+      errorTimer = setTimeout(() => errorToast.classList.remove('show'), 5000);
+    }
+
+    function esc(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    // Append a final transcript bubble
+    function appendMessage(role, text) {
+      text = (text || '').trim();
+      if (!text) return;
+      const div = document.createElement('div');
+      div.className = 'msg ' + (role === 'user' ? 'user' : 'agent');
+      div.innerHTML =
+        '<div class="msg-label">' + (role === 'user' ? 'You' : 'Agent') + '</div>' +
+        '<div class="msg-bubble">' + esc(text) + '</div>';
+      transcriptEl.appendChild(div);
+      transcriptEl.scrollTop = transcriptEl.scrollHeight;
+    }
+
+    // ─── Metrics polling ──────────────────────────
+    async function pollMetrics() {
+      try {
+        const res = await fetch(API + '/voice/metrics');
+        if (!res.ok) return;
+        const data = await res.json();
+        const turns   = data.turns   || [];
+        const summary = data.summary || {};
+
+        if (turns.length > 0) {
+          const last = turns[turns.length - 1];
+          document.getElementById('m-stt').textContent = fmt(last.stt_latency_ms);
+          document.getElementById('m-llm').textContent = fmt(last.llm_ttfb_ms);
+          document.getElementById('m-tts').textContent = fmt(last.tts_ttfb_ms);
+          document.getElementById('m-e2e').textContent = fmt(last.total_latency_ms);
+        }
+
+        document.getElementById('a-stt').textContent   = fmt(summary.avg_stt_ms);
+        document.getElementById('a-llm').textContent   = fmt(summary.avg_llm_ttfb_ms);
+        document.getElementById('a-e2e').textContent   = fmt(summary.avg_total_ms);
+        document.getElementById('a-turns').textContent = summary.total_turns || 0;
+      } catch (_) {
+        // silent — don't spam errors while polling
+      }
+    }
+
+    // ─── Agent state ──────────────────────────────
+    const STATE_MAP = {
+      listening: ['listening', 'Listening…'],
+      thinking:  ['thinking',  'Thinking…'],
+      speaking:  ['speaking',  'Speaking…'],
+    };
+
+    function applyAgentState(state) {
+      if (!state) return;
+      const [cls, label] = STATE_MAP[state] || ['connected', state];
+      setStatus(cls, label);
+    }
+
+    function checkExistingAgentState() {
+      if (!room) return;
+      for (const [, p] of room.remoteParticipants) {
+        const s = p.attributes && p.attributes['lk.agent.state'];
+        if (s) { applyAgentState(s); break; }
+      }
+    }
+
+    // ─── Connect ──────────────────────────────────
+    async function connect() {
+      btnConnect.disabled = true;
+      setStatus('', 'Connecting…');
+
+      try {
+        // 1. LiveKit server URL from FastAPI
+        const cfgRes = await fetch(API + '/voice/config');
+        if (!cfgRes.ok) throw new Error('FastAPI /voice/config returned ' + cfgRes.status);
+        const { livekit_url } = await cfgRes.json();
+
+        // 2. JWT token
+        const participantName = 'user-' + Math.random().toString(36).slice(2, 6);
+        const tokRes = await fetch(API + '/voice/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ room_name: 'demo-room', participant_name: participantName }),
+        });
+        if (!tokRes.ok) throw new Error('FastAPI /voice/token returned ' + tokRes.status);
+        const { token } = await tokRes.json();
+
+        // 3. Create Room
+        room = new Room({ adaptiveStream: true, dynacast: true });
+
+        // Connection state changes
+        room.on(RoomEvent.ConnectionStateChanged, (state) => {
+          if (state === ConnectionState.Connected) {
+            setStatus('connected', 'Connected');
+            btnDisconnect.disabled = false;
+            checkExistingAgentState();
+          } else if (state === ConnectionState.Disconnected) {
+            handleDisconnect();
+          } else if (state === ConnectionState.Reconnecting) {
+            setStatus('', 'Reconnecting…');
+          }
+        });
+
+        // Agent state updates
+        room.on(RoomEvent.ParticipantAttributesChanged, (changedAttrs, participant) => {
+          if ('lk.agent.state' in changedAttrs) {
+            applyAgentState(changedAttrs['lk.agent.state']);
+          }
+        });
+
+        // Transcripts — primary path: livekit-agents publishes TranscriptionSegment
+        room.on(RoomEvent.TranscriptionReceived, (segments, participant, publication) => {
+          const finals = (segments || []).filter(s => s.final !== false && s.text);
+          if (!finals.length) return;
+          const text = finals.map(s => s.text).join(' ').trim();
+          if (!text) return;
+          // Participant identity tells us role: local = user, remote = agent
+          const isUser = participant && participant.identity === room.localParticipant.identity;
+          appendMessage(isUser ? 'user' : 'agent', text);
+        });
+
+        // Transcripts — fallback: DataReceived with custom JSON envelope
+        // { type: "transcript", role: "user"|"assistant", text: "..." }
+        room.on(RoomEvent.DataReceived, (payload, participant, kind, topic) => {
+          let msg;
+          try { msg = JSON.parse(new TextDecoder().decode(payload)); } catch (_) { return; }
+          if (msg && msg.type === 'transcript' && msg.text) {
+            appendMessage(msg.role === 'user' ? 'user' : 'agent', msg.text);
+          }
+        });
+
+        // Remote audio — subscribe and attach so we hear the agent's TTS
+        room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+          if (track.kind === Track.Kind.Audio) {
+            const el = track.attach();
+            audioSink.appendChild(el);
+          }
+        });
+
+        room.on(RoomEvent.TrackUnsubscribed, (track) => {
+          track.detach().forEach(el => el.remove());
+        });
+
+        // 4. Connect to LiveKit
+        await room.connect(livekit_url, token);
+
+        // 5. Publish local mic
+        await room.localParticipant.setMicrophoneEnabled(true);
+
+        // 6. Start metrics poll
+        pollMetrics();
+        pollTimer = setInterval(pollMetrics, 2000);
+
+      } catch (err) {
+        console.error('Connect failed:', err);
+        showError(err.message || 'Connection failed');
+        setStatus('', 'Disconnected');
+        btnConnect.disabled = false;
+        if (room) { try { room.disconnect(); } catch (_) {} room = null; }
+      }
+    }
+
+    // ─── Disconnect ───────────────────────────────
+    function disconnect() {
+      if (room) room.disconnect();
+    }
+
+    function handleDisconnect() {
+      clearInterval(pollTimer);
+      pollTimer = null;
+      audioSink.innerHTML = '';
+      setStatus('', 'Disconnected');
+      btnConnect.disabled = false;
+      btnDisconnect.disabled = true;
+      room = null;
+    }
+
+    // ─── Buttons ──────────────────────────────────
+    btnConnect.addEventListener('click', connect);
+    btnDisconnect.addEventListener('click', disconnect);
+  </script>
+</body>
+</html>

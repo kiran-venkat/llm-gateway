@@ -1,6 +1,7 @@
 import time
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from jose import jwt
 from pydantic import BaseModel
 
@@ -8,6 +9,13 @@ from config import settings
 from metrics import store
 
 app = FastAPI(title="Voice Agent API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class TokenRequest(BaseModel):
