@@ -80,59 +80,50 @@ async def entrypoint(ctx: JobContext):
         tts=tts,
     )
 
-    # Per-turn metrics capture.
-    # conversation_item_added fires twice per turn: once for the user message
-    # (has STT timing) and once for the assistant message (has LLM + TTS timing).
-    # We stash the user-side STT data and complete the record on the assistant side.
-    _pending_stt: dict[str, tuple[float | None, str | None]] = {}
-
     @session.on("conversation_item_added")
-    def on_item_added(ev) -> None:
-        if not isinstance(ev.item, ChatMessage):
-            return
-
-        m = ev.item.metrics  # MetricsReport TypedDict
-
-        if ev.item.role == "user":
-            delay = m.get("transcription_delay")
-            transcript = ev.item.text_content
-            _pending_stt[ctx.room.name] = (
-                round(delay * 1000, 1) if delay else None,
-                transcript,
-            )
-            logger.debug(
-                "STT metrics",
-                extra={"stt_latency_ms": _pending_stt[ctx.room.name][0]},
-            )
-
-        elif ev.item.role == "assistant":
-            stt_ms, transcript = _pending_stt.pop(ctx.room.name, (None, None))
-
-            llm_ttfb = m.get("llm_node_ttft")
-            tts_ttfb = m.get("tts_node_ttfb")
-            e2e = m.get("e2e_latency")
+    def on_item_added(ev):
+        try:
+            item = ev.item
+            transcript = item.text_content
+            role = item.role  # "user" or "assistant"
 
             turn = TurnMetrics(
                 turn_id=str(uuid.uuid4()),
                 session_id=ctx.room.name,
                 timestamp=datetime.now(timezone.utc).isoformat(),
-                stt_latency_ms=stt_ms,
-                llm_ttfb_ms=round(llm_ttfb * 1000, 1) if llm_ttfb else None,
-                tts_ttfb_ms=round(tts_ttfb * 1000, 1) if tts_ttfb else None,
-                total_latency_ms=round(e2e * 1000, 1) if e2e else None,
                 transcript=transcript,
             )
+
+            metrics_data = getattr(item, "metrics", None)
+            if metrics_data is not None:
+                if role == "user":
+                    delay = metrics_data.get("transcription_delay")
+                    if delay:
+                        turn.stt_latency_ms = round(delay * 1000, 1)
+                elif role == "assistant":
+                    llm_ttft = metrics_data.get("llm_node_ttft")
+                    tts_ttfb = metrics_data.get("tts_node_ttfb")
+                    e2e = metrics_data.get("e2e_latency")
+                    if llm_ttft:
+                        turn.llm_ttfb_ms = round(llm_ttft * 1000, 1)
+                    if tts_ttfb:
+                        turn.tts_ttfb_ms = round(tts_ttfb * 1000, 1)
+                    if e2e:
+                        turn.total_latency_ms = round(e2e * 1000, 1)
+
             store.record(turn)
             logger.info(
                 "turn metrics recorded",
                 extra={
-                    "session_id": turn.session_id,
+                    "role": role,
                     "stt_ms": turn.stt_latency_ms,
                     "llm_ttfb_ms": turn.llm_ttfb_ms,
                     "tts_ttfb_ms": turn.tts_ttfb_ms,
                     "total_ms": turn.total_latency_ms,
                 },
             )
+        except Exception as e:
+            logger.warning(f"metrics capture failed: {e}")
 
     # start() blocks until the room closes
     await session.start(
