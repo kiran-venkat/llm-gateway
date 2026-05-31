@@ -1,11 +1,16 @@
 services:
   livekit:
     image: livekit/livekit-server:latest
-    command: --dev --bind 0.0.0.0
+    command: >
+      --dev
+      --bind 0.0.0.0
+      --rtc.tcp_port 7881
+      --rtc.use_external_ip false
     ports:
       - "7880:7880"
       - "7881:7881"
       - "7882:7882/udp"
+    network_mode: host
 
   voice-api:
     build: .

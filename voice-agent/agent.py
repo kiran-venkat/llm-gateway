@@ -95,7 +95,7 @@ async def entrypoint(ctx: JobContext):
 
         if ev.item.role == "user":
             delay = m.get("transcription_delay")
-            transcript = ev.item.text_content()
+            transcript = ev.item.text_content
             _pending_stt[ctx.room.name] = (
                 round(delay * 1000, 1) if delay else None,
                 transcript,

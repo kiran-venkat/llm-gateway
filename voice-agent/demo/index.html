@@ -492,7 +492,7 @@
         const tokRes = await fetch(API + '/voice/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ room_name: 'demo-room', participant_name: participantName }),
+          body: JSON.stringify({ room_name: 'demo-' + Math.random().toString(36).substr(2, 6), participant_name: participantName }),
         });
         if (!tokRes.ok) throw new Error('FastAPI /voice/token returned ' + tokRes.status);
         const { token } = await tokRes.json();
@@ -554,7 +554,11 @@
         });
 
         // 4. Connect to LiveKit
-        await room.connect(livekit_url, token);
+        await room.connect(livekit_url, token, {
+          rtcConfig: {
+            iceTransportPolicy: 'all',
+          },
+        });
 
         // 5. Publish local mic
         await room.localParticipant.setMicrophoneEnabled(true);
