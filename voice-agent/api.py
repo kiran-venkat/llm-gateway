@@ -5,6 +5,7 @@ from jose import jwt
 from pydantic import BaseModel
 
 from config import settings
+from metrics import store
 
 app = FastAPI(title="Voice Agent API")
 
@@ -51,3 +52,30 @@ async def create_token(body: TokenRequest):
     }
     token = jwt.encode(claims, settings.LIVEKIT_API_SECRET, algorithm="HS256")
     return {"token": token}
+
+
+@app.get("/voice/metrics")
+async def get_metrics():
+    """Returns last 50 turns with per-turn STT/LLM/TTS latencies."""
+    return {
+        "summary": store.get_summary(),
+        "turns": [
+            {
+                "turn_id": t.turn_id,
+                "session_id": t.session_id,
+                "timestamp": t.timestamp,
+                "stt_latency_ms": t.stt_latency_ms,
+                "llm_ttfb_ms": t.llm_ttfb_ms,
+                "tts_ttfb_ms": t.tts_ttfb_ms,
+                "total_latency_ms": t.total_latency_ms,
+                "transcript": t.transcript,
+            }
+            for t in store.get_all()
+        ],
+    }
+
+
+@app.get("/voice/metrics/summary")
+async def get_metrics_summary():
+    """Quick summary — just the averages."""
+    return store.get_summary()

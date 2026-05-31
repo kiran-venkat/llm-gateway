@@ -1,5 +1,7 @@
 import logging
 import sys
+import uuid
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -12,9 +14,11 @@ from livekit.agents import (
     WorkerOptions,
     cli,
 )
+from livekit.agents.llm import ChatMessage
 from livekit.plugins import deepgram, openai, silero
 
 from config import get_settings
+from metrics import TurnMetrics, store
 
 settings = get_settings()
 logging.basicConfig(level=settings.LOG_LEVEL)
@@ -75,6 +79,60 @@ async def entrypoint(ctx: JobContext):
         llm=llm,
         tts=tts,
     )
+
+    # Per-turn metrics capture.
+    # conversation_item_added fires twice per turn: once for the user message
+    # (has STT timing) and once for the assistant message (has LLM + TTS timing).
+    # We stash the user-side STT data and complete the record on the assistant side.
+    _pending_stt: dict[str, tuple[float | None, str | None]] = {}
+
+    @session.on("conversation_item_added")
+    def on_item_added(ev) -> None:
+        if not isinstance(ev.item, ChatMessage):
+            return
+
+        m = ev.item.metrics  # MetricsReport TypedDict
+
+        if ev.item.role == "user":
+            delay = m.get("transcription_delay")
+            transcript = ev.item.text_content()
+            _pending_stt[ctx.room.name] = (
+                round(delay * 1000, 1) if delay else None,
+                transcript,
+            )
+            logger.debug(
+                "STT metrics",
+                extra={"stt_latency_ms": _pending_stt[ctx.room.name][0]},
+            )
+
+        elif ev.item.role == "assistant":
+            stt_ms, transcript = _pending_stt.pop(ctx.room.name, (None, None))
+
+            llm_ttfb = m.get("llm_node_ttft")
+            tts_ttfb = m.get("tts_node_ttfb")
+            e2e = m.get("e2e_latency")
+
+            turn = TurnMetrics(
+                turn_id=str(uuid.uuid4()),
+                session_id=ctx.room.name,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                stt_latency_ms=stt_ms,
+                llm_ttfb_ms=round(llm_ttfb * 1000, 1) if llm_ttfb else None,
+                tts_ttfb_ms=round(tts_ttfb * 1000, 1) if tts_ttfb else None,
+                total_latency_ms=round(e2e * 1000, 1) if e2e else None,
+                transcript=transcript,
+            )
+            store.record(turn)
+            logger.info(
+                "turn metrics recorded",
+                extra={
+                    "session_id": turn.session_id,
+                    "stt_ms": turn.stt_latency_ms,
+                    "llm_ttfb_ms": turn.llm_ttfb_ms,
+                    "tts_ttfb_ms": turn.tts_ttfb_ms,
+                    "total_ms": turn.total_latency_ms,
+                },
+            )
 
     # start() blocks until the room closes
     await session.start(
