@@ -40,6 +40,11 @@ async def entrypoint(ctx: JobContext):
 
     await ctx.connect()
 
+    # Stable session ID for this conversation — injected as x-session-id
+    # on every LLM call so the gateway groups all turns into one RequestSpan.
+    session_id = f"voice-{ctx.room.name}-{uuid.uuid4().hex[:8]}"
+    logger.info("session started", extra={"session_id": session_id})
+
     # VAD — Silero runs locally, no API key needed
     try:
         vad = silero.VAD.load()
@@ -63,6 +68,7 @@ async def entrypoint(ctx: JobContext):
         model=settings.GATEWAY_MODEL,
         base_url=f"{settings.GATEWAY_URL}/v1",
         api_key=settings.GATEWAY_API_KEY,
+        extra_headers={"x-session-id": session_id},
     )
 
     # TTS — Deepgram Aura 2 (same Deepgram API key, no extra signup)

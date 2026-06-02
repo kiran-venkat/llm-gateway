@@ -1,4 +1,5 @@
 import time
+import uuid
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +10,10 @@ from config import settings
 from metrics import store
 
 app = FastAPI(title="Voice Agent API")
+
+# In-memory map of room_name → session_id.
+# Populated on POST /voice/token; read by the agent via GET /voice/session/{room_name}.
+active_sessions: dict[str, str] = {}
 
 app.add_middleware(
     CORSMiddleware,
@@ -45,6 +50,9 @@ async def create_token(body: TokenRequest):
     if not body.room_name or not body.participant_name:
         raise HTTPException(status_code=400, detail="room_name and participant_name are required")
 
+    session_id = f"voice-{body.room_name}-{uuid.uuid4().hex[:8]}"
+    active_sessions[body.room_name] = session_id
+
     now = int(time.time())
     claims = {
         "iss": settings.LIVEKIT_API_KEY,
@@ -59,7 +67,15 @@ async def create_token(body: TokenRequest):
         },
     }
     token = jwt.encode(claims, settings.LIVEKIT_API_SECRET, algorithm="HS256")
-    return {"token": token}
+    return {"token": token, "session_id": session_id}
+
+
+@app.get("/voice/session/{room_name}")
+async def get_session(room_name: str):
+    session_id = active_sessions.get(room_name)
+    if session_id is None:
+        raise HTTPException(status_code=404, detail=f"No active session for room '{room_name}'")
+    return {"session_id": session_id}
 
 
 @app.get("/voice/metrics")
