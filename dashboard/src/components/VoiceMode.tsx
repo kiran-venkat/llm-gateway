@@ -6,7 +6,7 @@ import {
   RemoteAudioTrack,
 } from 'livekit-client'
 import type { Participant, TrackPublication, TranscriptionSegment } from 'livekit-client'
-import { Mic, PhoneOff } from 'lucide-react'
+import { Mic, PhoneOff, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -21,6 +21,7 @@ interface TranscriptEntry {
   id: string
   role: 'user' | 'agent'
   text: string
+  timestamp: string   // HH:MM:SS, set when entry is created
 }
 
 interface TurnLatency {
@@ -28,6 +29,14 @@ interface TurnLatency {
   llm_ttfb_ms: number | null
   tts_ttfb_ms: number | null
   total_latency_ms: number | null
+}
+
+interface MetricsSummary {
+  total_turns: number
+  avg_stt_ms: number | null
+  avg_llm_ttfb_ms: number | null
+  avg_tts_ttfb_ms: number | null
+  avg_total_ms: number | null
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -40,8 +49,25 @@ const AGENT_STATE: Record<AgentState, { label: string; dot: string }> = {
   speaking:     { label: 'Speaking…',    dot: 'bg-blue-500' },
 }
 
+const EMPTY_SUMMARY: MetricsSummary = {
+  total_turns: 0,
+  avg_stt_ms: null,
+  avg_llm_ttfb_ms: null,
+  avg_tts_ttfb_ms: null,
+  avg_total_ms: null,
+}
+
 function fmt(ms: number | null): string {
   return ms == null ? '—' : `${Math.round(ms)}ms`
+}
+
+function nowHMS(): string {
+  return new Date().toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -63,6 +89,14 @@ function StatBox({
   )
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+      {children}
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function VoiceMode() {
@@ -74,15 +108,15 @@ export function VoiceMode() {
     tts_ttfb_ms: null,
     total_latency_ms: null,
   })
-  const [totalTurns, setTotalTurns] = useState(0)
+  const [summary, setSummary] = useState<MetricsSummary>(EMPTY_SUMMARY)
   const [error, setError] = useState<string | null>(null)
 
-  const roomRef  = useRef<Room | null>(null)
-  const audioRef = useRef<HTMLDivElement>(null)
-  const pollRef  = useRef<ReturnType<typeof setInterval> | null>(null)
+  const roomRef   = useRef<Room | null>(null)
+  const audioRef  = useRef<HTMLDivElement>(null)
+  const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll on new transcript entry
+  // Smooth-scroll to bottom whenever a new transcript entry arrives
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [transcripts])
@@ -103,7 +137,7 @@ export function VoiceMode() {
       if (!res.ok) return
       const data = await res.json() as {
         turns: TurnLatency[]
-        summary: { total_turns: number }
+        summary: MetricsSummary
       }
       const turns = data.turns ?? []
       if (turns.length > 0) {
@@ -115,7 +149,7 @@ export function VoiceMode() {
           total_latency_ms: last.total_latency_ms,
         })
       }
-      setTotalTurns(data.summary?.total_turns ?? 0)
+      setSummary(data.summary ?? EMPTY_SUMMARY)
     } catch {
       // silent — voice agent may not be running
     }
@@ -128,7 +162,7 @@ export function VoiceMode() {
     setAgentState('connecting')
 
     try {
-      // 1. Get LiveKit URL from voice agent
+      // 1. Get LiveKit URL from voice agent config
       let livekitUrl: string
       try {
         const cfgRes = await fetch(`${VOICE_API}/voice/config`)
@@ -193,6 +227,7 @@ export function VoiceMode() {
               id: `${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
               role: isUser ? 'user' : 'agent',
               text,
+              timestamp: nowHMS(),
             },
           ])
         },
@@ -201,8 +236,7 @@ export function VoiceMode() {
       // Remote audio — attach TTS output so user can hear the agent
       room.on(RoomEvent.TrackSubscribed, (track) => {
         if (track instanceof RemoteAudioTrack && audioRef.current) {
-          const el = track.attach()
-          audioRef.current.appendChild(el)
+          audioRef.current.appendChild(track.attach())
         }
       })
 
@@ -228,7 +262,7 @@ export function VoiceMode() {
         throw new Error('MIC_DENIED')
       }
 
-      // 6. Read initial agent state if the agent is already in the room
+      // 6. Read initial agent state if agent is already in the room
       for (const [, p] of room.remoteParticipants) {
         const s = p.attributes?.['lk.agent.state']
         if (s === 'listening' || s === 'thinking' || s === 'speaking') {
@@ -238,7 +272,7 @@ export function VoiceMode() {
       }
       if (agentState === 'connecting') setAgentState('listening')
 
-      // 7. Start metrics poll
+      // 7. Start metrics poll (immediate + every 2 s)
       void pollMetrics()
       pollRef.current = setInterval(() => void pollMetrics(), 2000)
 
@@ -276,6 +310,8 @@ export function VoiceMode() {
     if (audioRef.current) audioRef.current.innerHTML = ''
     setAgentState('disconnected')
     setTranscripts([])
+    setSummary(EMPTY_SUMMARY)
+    setLastTurn({ stt_latency_ms: null, llm_ttfb_ms: null, tts_ttfb_ms: null, total_latency_ms: null })
     roomRef.current = null
   }
 
@@ -289,7 +325,7 @@ export function VoiceMode() {
 
       {/* ── LEFT: Transcript ──────────────────────────────────────────────── */}
       <div className="flex flex-col flex-1 min-w-0">
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0">
 
           {transcripts.length === 0 && !error && (
             <div className="flex h-full items-center justify-center text-slate-600 text-sm">
@@ -299,35 +335,52 @@ export function VoiceMode() {
             </div>
           )}
 
-          {transcripts.map((t) => (
-            <div
-              key={t.id}
-              className={`flex ${t.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
-            >
-              <div
-                className={`max-w-[80%] flex flex-col ${
-                  t.role === 'user' ? 'items-end' : 'items-start'
-                }`}
-              >
-                <span
-                  className={`text-xs font-mono mb-1 ${
-                    t.role === 'user' ? 'text-blue-400' : 'text-slate-500'
-                  }`}
-                >
-                  {t.role === 'user' ? 'you' : 'agent'}
-                </span>
-                <div
-                  className={`rounded-lg px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
-                    t.role === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-800 text-slate-100'
-                  }`}
-                >
-                  {t.text}
+          {transcripts.map((t, i) => {
+            // Subtle separator when role switches
+            const prevRole = i > 0 ? transcripts[i - 1].role : null
+            const showSeparator = prevRole !== null && prevRole !== t.role
+
+            return (
+              <div key={t.id}>
+                {showSeparator && (
+                  <div className="flex items-center gap-3 py-1">
+                    <div className="flex-1 h-px bg-slate-800" />
+                  </div>
+                )}
+
+                <div className={`flex items-end gap-2 ${t.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+
+                  {/* Role icon */}
+                  <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center mb-0.5 ${
+                    t.role === 'user' ? 'bg-blue-900' : 'bg-slate-700'
+                  }`}>
+                    {t.role === 'user'
+                      ? <User size={13} className="text-blue-300" />
+                      : <Mic  size={13} className="text-slate-400" />
+                    }
+                  </div>
+
+                  {/* Bubble + meta */}
+                  <div className={`max-w-[75%] flex flex-col ${t.role === 'user' ? 'items-end' : 'items-start'}`}>
+                    <span className={`text-xs font-mono mb-1 flex items-center gap-2 ${
+                      t.role === 'user' ? 'text-blue-400 flex-row-reverse' : 'text-slate-500'
+                    }`}>
+                      <span>{t.role === 'user' ? 'you' : 'agent'}</span>
+                      <span className="text-slate-700">{t.timestamp}</span>
+                    </span>
+                    <div className={`rounded-lg px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+                      t.role === 'user'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-800 text-slate-100'
+                    }`}>
+                      {t.text}
+                    </div>
+                  </div>
+
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {error && (
             <div className="rounded-lg border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-300 font-mono">
@@ -335,6 +388,7 @@ export function VoiceMode() {
             </div>
           )}
 
+          {/* Scroll sentinel */}
           <div ref={scrollRef} />
         </div>
       </div>
@@ -343,11 +397,9 @@ export function VoiceMode() {
       <div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900 overflow-y-auto">
         <div className="p-4 space-y-5">
 
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Voice Mode
-          </div>
+          <SectionLabel>Voice Mode</SectionLabel>
 
-          {/* Agent state */}
+          {/* Agent state indicator */}
           <div className="flex items-center gap-2.5">
             <span className={`inline-block w-2.5 h-2.5 rounded-full shrink-0 ${dotClass}`} />
             <span className="text-sm text-slate-300">{stateLabel}</span>
@@ -376,25 +428,51 @@ export function VoiceMode() {
             </Button>
           )}
 
-          {/* Last-turn latency */}
+          {/* ── Last Turn ── */}
           <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              Last Turn
+            <div className="flex items-center justify-between mb-2">
+              <SectionLabel>Last Turn</SectionLabel>
+              {summary.total_turns > 0 && (
+                <span className="text-xs font-mono text-slate-500">
+                  {summary.total_turns} turn{summary.total_turns !== 1 ? 's' : ''}
+                </span>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <StatBox label="STT"      value={fmt(lastTurn.stt_latency_ms)}  valueClass="text-green-400" />
-              <StatBox label="LLM TTFB" value={fmt(lastTurn.llm_ttfb_ms)}    valueClass="text-yellow-400" />
-              <StatBox label="TTS TTFB" value={fmt(lastTurn.tts_ttfb_ms)}    valueClass="text-blue-400" />
+              <StatBox label="STT"      value={fmt(lastTurn.stt_latency_ms)}   valueClass="text-green-400" />
+              <StatBox label="LLM TTFB" value={fmt(lastTurn.llm_ttfb_ms)}     valueClass="text-yellow-400" />
+              <StatBox label="TTS TTFB" value={fmt(lastTurn.tts_ttfb_ms)}     valueClass="text-blue-400" />
               <StatBox label="Total"    value={fmt(lastTurn.total_latency_ms)} />
             </div>
           </div>
 
-          {/* Session turn count */}
-          {totalTurns > 0 && (
-            <div className="text-xs text-slate-500 font-mono">
-              {totalTurns} turn{totalTurns !== 1 ? 's' : ''} this session
+          {/* ── Session Averages ── */}
+          <div>
+            <div className="mb-2">
+              <SectionLabel>Session Stats</SectionLabel>
             </div>
-          )}
+            <div className="grid grid-cols-2 gap-2">
+              <StatBox
+                label="Avg STT"
+                value={fmt(summary.avg_stt_ms)}
+                valueClass="text-green-400"
+              />
+              <StatBox
+                label="Avg LLM"
+                value={fmt(summary.avg_llm_ttfb_ms)}
+                valueClass="text-yellow-400"
+              />
+              <StatBox
+                label="Avg Total"
+                value={fmt(summary.avg_total_ms)}
+              />
+              <StatBox
+                label="Turns"
+                value={summary.total_turns > 0 ? String(summary.total_turns) : '—'}
+                valueClass="text-slate-400"
+              />
+            </div>
+          </div>
 
         </div>
       </div>
