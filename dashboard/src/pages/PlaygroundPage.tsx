@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, RotateCcw, ChevronDown, ChevronRight } from 'lucide-react'
+import { Send, RotateCcw, ChevronDown, ChevronRight, Mic } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -18,6 +18,7 @@ import {
   getRequests,
   type RequestEntry,
 } from '@/lib/api-client'
+import { VoiceMode } from '@/components/VoiceMode'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -222,6 +223,7 @@ function MetadataPanel({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function PlaygroundPage() {
+  const [mode, setMode] = useState<'text' | 'voice'>('text')
   const [history, setHistory] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [model, setModel] = useState<string>(MODELS[0])
@@ -342,7 +344,31 @@ export default function PlaygroundPage() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-100">
+    <div className="flex flex-col h-screen bg-slate-950 text-slate-100">
+      {/* Mode toggle */}
+      <div className="shrink-0 flex items-center gap-1 px-4 py-2 border-b border-slate-800">
+        <span className="text-xs text-slate-500 mr-2">Mode</span>
+        <button
+          onClick={() => setMode('text')}
+          className={`px-3 py-1 text-xs rounded font-medium transition-colors ${
+            mode === 'text' ? 'bg-slate-700 text-slate-100' : 'text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          Text
+        </button>
+        <button
+          onClick={() => setMode('voice')}
+          className={`px-3 py-1 text-xs rounded font-medium transition-colors flex items-center gap-1.5 ${
+            mode === 'voice' ? 'bg-slate-700 text-slate-100' : 'text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          <Mic size={11} />
+          Voice
+        </button>
+      </div>
+
+      {mode === 'voice' ? <VoiceMode /> : (
+      <div className="flex flex-1 min-h-0">
       {/* ── LEFT PANEL ──────────────────────────────────────────────────── */}
       <div className="flex flex-col flex-1 min-w-0">
         {/* Controls bar */}
@@ -493,6 +519,8 @@ export default function PlaygroundPage() {
       <div className="w-72 shrink-0 border-l border-slate-800 bg-slate-900 overflow-y-auto">
         <MetadataPanel headers={responseHeaders} lastRequest={lastRequest} />
       </div>
+      </div>
+      )}
     </div>
   )
 }
