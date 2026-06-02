@@ -84,3 +84,8 @@ build/
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
+# Python
+voice-agent/__pycache__/
+voice-agent/**/__pycache__/
+voice-agent/**/*.pyc
+voice-agent/.env
