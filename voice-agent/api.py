@@ -93,6 +93,7 @@ async def get_metrics():
                 "tts_ttfb_ms": t.tts_ttfb_ms,
                 "total_latency_ms": t.total_latency_ms,
                 "transcript": t.transcript,
+                "cost_usd": t.cost_usd,
             }
             for t in store.get_all()
         ],
@@ -101,5 +102,19 @@ async def get_metrics():
 
 @app.get("/voice/metrics/summary")
 async def get_metrics_summary():
-    """Quick summary — just the averages."""
+    """Quick summary — averages + total cost."""
     return store.get_summary()
+
+
+@app.get("/voice/metrics/cost")
+async def get_metrics_cost():
+    """Per-turn cost breakdown and session total."""
+    turns = store.get_all()
+    return {
+        "total_cost_usd": store.get_session_cost(),
+        "turn_costs": [
+            {"turn_id": t.turn_id, "cost_usd": t.cost_usd}
+            for t in turns
+            if t.cost_usd is not None
+        ],
+    }

@@ -7,6 +7,33 @@ from config import get_settings
 # T89 — replaced by openai.LLM base_url in agent for real-time calls (T90)
 
 
+async def get_latest_request_cost(session_id: str) -> float | None:
+    """
+    Fetch the cost of the most recent LLM request recorded by the gateway.
+    Called ~2 s after each assistant turn to backfill cost_usd on TurnMetrics.
+
+    Uses GET /api/v1/analytics/requests?page=1&limit=1 — sufficient because
+    voice turns are sequential; the most recent request after the sleep is the
+    turn's LLM call.  Returns None on any error so the caller can skip silently.
+    """
+    settings = get_settings()
+    url = f"{settings.GATEWAY_URL}/api/v1/analytics/requests"
+    headers = {"Authorization": f"Bearer {settings.GATEWAY_API_KEY}"}
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(url, params={"page": 1, "limit": 1}, headers=headers)
+        if r.status_code != 200:
+            return None
+        data = r.json()
+        entries = data.get("data") or []
+        if not entries:
+            return None
+        raw = entries[0].get("costUsd")
+        return float(raw) if raw is not None else None
+    except Exception:
+        return None
+
+
 async def chat(
     messages: list[dict],
     model: str | None = None,

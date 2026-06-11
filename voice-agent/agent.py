@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import sys
 import uuid
@@ -19,6 +20,7 @@ from livekit.plugins import deepgram, openai, silero
 
 from config import get_settings
 from metrics import TurnMetrics, store
+from services.gateway import get_latest_request_cost
 
 settings = get_settings()
 logging.basicConfig(level=settings.LOG_LEVEL)
@@ -128,6 +130,19 @@ async def entrypoint(ctx: JobContext):
                     "total_ms": turn.total_latency_ms,
                 },
             )
+
+            # Backfill cost_usd ~2 s later once the gateway has written the row.
+            # Captures `turn` by closure so concurrent turns don't collide.
+            if role == "assistant":
+                async def fetch_cost(t: TurnMetrics = turn) -> None:
+                    await asyncio.sleep(2)
+                    cost = await get_latest_request_cost(session_id)
+                    if cost is not None:
+                        t.cost_usd = cost
+                        logger.info("turn cost recorded", extra={"cost_usd": cost})
+
+                asyncio.get_event_loop().create_task(fetch_cost())
+
         except Exception as e:
             logger.warning(f"metrics capture failed: {e}")
 

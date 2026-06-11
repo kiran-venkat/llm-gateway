@@ -15,6 +15,7 @@ class TurnMetrics:
     total_latency_ms: float | None = None
     transcript: str | None = None
     provider: str = "gateway"
+    cost_usd: float | None = None
 
 
 class MetricsStore:
@@ -30,6 +31,10 @@ class MetricsStore:
         with self._lock:
             return list(self._turns)
 
+    def get_session_cost(self) -> float:
+        """Total cost of all turns recorded in this session."""
+        return sum(t.cost_usd for t in self._turns if t.cost_usd is not None)
+
     def get_summary(self) -> dict:
         turns = self.get_all()
         if not turns:
@@ -39,6 +44,7 @@ class MetricsStore:
                 "avg_llm_ttfb_ms": None,
                 "avg_tts_ttfb_ms": None,
                 "avg_total_ms": None,
+                "total_cost_usd": 0.0,
             }
 
         def avg(vals):
@@ -51,6 +57,7 @@ class MetricsStore:
             "avg_llm_ttfb_ms": avg(t.llm_ttfb_ms for t in turns),
             "avg_tts_ttfb_ms": avg(t.tts_ttfb_ms for t in turns),
             "avg_total_ms": avg(t.total_latency_ms for t in turns),
+            "total_cost_usd": self.get_session_cost(),
         }
 
 
