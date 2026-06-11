@@ -58,15 +58,21 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # Prisma
 prisma/migrations/dev.db
 
-# Claude Code
-.claude/
+# Claude Code — local settings only; commands/ is committed
+.claude/settings.json
+.claude/settings.local.json
+.claude/docs/
 
 # Elastic Beanstalk
 .elasticbeanstalk/
 *.zip
 
-# Personal architecture notes (not for the repo)
-docs/
+# Personal architecture notes (not for the repo); docs/decisions/ is committed
+docs/architecture-explained.md
+docs/AWS-DEPLOYMENT.md
+docs/DEMO.md
+docs/V1-HANDOFF.md
+docs/V2-PLAN.md
 
 # Dependencies
 node_modules/
