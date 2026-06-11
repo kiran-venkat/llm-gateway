@@ -99,10 +99,16 @@ export class GatewayController {
     summary: 'Chat completion',
     description:
       'OpenAI-compatible chat completion endpoint. Routes to OpenAI, Anthropic, or Gemini ' +
-      'based on the model name. Supports streaming (SSE) and response caching.',
+      'based on the model name. Supports streaming (SSE) and response caching.\n\n' +
+      '**x-user-id header:** Optional opaque token for per-user tracing. ' +
+      'Must be pseudonymized before sending — do not pass real user identifiers ' +
+      '(email, name, phone number). Stored verbatim in request_spans.',
   })
   @ApiBody({ type: ChatCompletionRequestDto })
-  @ApiResponse({ status: 200, description: 'Successful completion or SSE stream' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successful completion or SSE stream',
+  })
   @ApiResponse({ status: 401, description: 'Invalid or missing API key' })
   @ApiResponse({ status: 402, description: 'Monthly budget limit exceeded' })
   @ApiResponse({ status: 429, description: 'Rate limit exceeded (RPM or TPM)' })
@@ -114,6 +120,7 @@ export class GatewayController {
     @Headers('x-provider') xProvider?: string,
     @Headers('x-tag') xTag?: string,
     @Headers('x-session-id') xSessionId?: string,
+    // x-user-id must be an opaque token. Callers must pseudonymize before sending.
     @Headers('x-user-id') xUserLabel?: string,
     @Res() res?: Response,
   ): Promise<void> {

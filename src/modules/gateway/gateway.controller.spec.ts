@@ -1,5 +1,6 @@
-import { HttpStatus } from '@nestjs/common';
 import { Response } from 'express';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 import { GatewayController } from './gateway.controller';
 import { GatewayService } from './gateway.service';
 import { AuthContext } from '../../common/interfaces/auth-context.interface';
@@ -101,6 +102,68 @@ const COMPLETE_RESULT = {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// DTO validation tests — run through class-validator directly, same as
+// ValidationPipe does at runtime.
+// ---------------------------------------------------------------------------
+
+describe('ChatCompletionRequestDto — input size limits', () => {
+  async function validateDto(plain: object): Promise<string[]> {
+    const instance = plainToInstance(ChatCompletionRequestDto, plain);
+    const errors = await validate(instance, { whitelist: true });
+    // ValidationError trees are nested: top-level errors hold children for
+    // @ValidateNested fields. Recurse to collect all constraint messages.
+    const collect = (
+      errs: import('class-validator').ValidationError[],
+    ): string[] =>
+      errs.flatMap((e) => [
+        ...Object.values(e.constraints ?? {}),
+        ...collect(e.children ?? []),
+      ]);
+    return collect(errors);
+  }
+
+  it('accepts a valid request with exactly 100 messages', async () => {
+    const messages = Array.from({ length: 100 }, () => ({
+      role: 'user',
+      content: 'hi',
+    }));
+    const errors = await validateDto({
+      model: 'gpt-4o',
+      messages,
+    });
+    expect(errors).toHaveLength(0);
+  });
+
+  it('rejects a request with 101 messages with a 400-equivalent validation error', async () => {
+    const messages = Array.from({ length: 101 }, () => ({
+      role: 'user',
+      content: 'hi',
+    }));
+    const errors = await validateDto({
+      model: 'gpt-4o',
+      messages,
+    });
+    expect(errors.some((e) => e.includes('100'))).toBe(true);
+  });
+
+  it('rejects a message whose content exceeds 1,000,000 characters', async () => {
+    const errors = await validateDto({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: 'x'.repeat(1_000_001) }],
+    });
+    expect(errors.some((e) => e.includes('1000000'))).toBe(true);
+  });
+
+  it('accepts a message with exactly 1,000,000 characters', async () => {
+    const errors = await validateDto({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: 'x'.repeat(1_000_000) }],
+    });
+    expect(errors).toHaveLength(0);
+  });
+});
 
 describe('GatewayController — rate limit headers', () => {
   let controller: GatewayController;

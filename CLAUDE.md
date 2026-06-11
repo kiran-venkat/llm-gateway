@@ -50,6 +50,27 @@ V1 COMPLETE. All phases done T01–T56.
 - Errors: typed domain exceptions, global exception filter formats them
 - Commits: feat(module): description
 
+## Security Rules (never violate)
+
+### userLabel / x-user-id is PII-sensitive
+The `x-user-id` request header is stored verbatim in `request_spans.userLabel`.
+It MUST be an opaque token (hashed user ID, session UUID, internal reference).
+Never store: email addresses, names, phone numbers, or any real user identifiers.
+Callers are responsible for pseudonymization before sending the header.
+This applies everywhere userLabel flows: GatewayController, GatewayService,
+CacheInterceptor, UsageJobData, and UsageRepository.createRequestSpan().
+
+### Message content limits
+ChatCompletionRequestDto enforces: max 100 messages per request, max 1,000,000
+characters per message content. These limits are enforced by ValidationPipe via
+@ArrayMaxSize and @MaxLength decorators. Do not remove or raise these limits
+without a documented security review — they prevent oversized payload DoS.
+
+### AdminGuard protects management endpoints
+Provider config (POST/DELETE /api/v1/providers), tenant creation, and API key
+management require Authorization: Bearer <ADMIN_SECRET>. Do not add AuthGuard
+in place of AdminGuard on these endpoints — tenant keys must not have admin access.
+
 ## CODEBASE MAP
 
 ### Where things live

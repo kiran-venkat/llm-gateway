@@ -1,6 +1,9 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { HttpStatus } from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
-import { AnalyticsRepository, UsageTimeSeriesRow } from './analytics.repository';
+import {
+  AnalyticsRepository,
+  UsageTimeSeriesRow,
+} from './analytics.repository';
 import { CacheService } from '../cache/cache.service';
 import { UsageQueryDto } from './dto/usage-query.dto';
 
@@ -10,7 +13,9 @@ import { UsageQueryDto } from './dto/usage-query.dto';
 
 const TENANT_ID = 'tenant-abc';
 
-function makeRow(overrides: Partial<UsageTimeSeriesRow> = {}): UsageTimeSeriesRow {
+function makeRow(
+  overrides: Partial<UsageTimeSeriesRow> = {},
+): UsageTimeSeriesRow {
   return {
     date: '2024-01-15',
     requests: 100,
@@ -32,7 +37,9 @@ function makeQuery(overrides: Partial<UsageQueryDto> = {}): UsageQueryDto {
   return dto;
 }
 
-function makeRepo(rows: UsageTimeSeriesRow[] = []): jest.Mocked<AnalyticsRepository> {
+function makeRepo(
+  rows: UsageTimeSeriesRow[] = [],
+): jest.Mocked<AnalyticsRepository> {
   return {
     getUsageTimeSeries: jest.fn().mockResolvedValue(rows),
   } as unknown as jest.Mocked<AnalyticsRepository>;
@@ -58,7 +65,10 @@ describe('AnalyticsService.getUsageTimeSeries', () => {
   });
 
   it('returns correct series for a date range', async () => {
-    const rows = [makeRow({ date: '2024-01-10' }), makeRow({ date: '2024-01-11' })];
+    const rows = [
+      makeRow({ date: '2024-01-10' }),
+      makeRow({ date: '2024-01-11' }),
+    ];
     repo.getUsageTimeSeries.mockResolvedValue(rows);
 
     const result = await service.getUsageTimeSeries(TENANT_ID, makeQuery());
@@ -70,8 +80,22 @@ describe('AnalyticsService.getUsageTimeSeries', () => {
 
   it('computes totals from series without a second DB query', async () => {
     const rows = [
-      makeRow({ requests: 100, tokens: 5000, cost_usd: 0.1, cache_hits: 20, errors: 5, avg_latency_ms: 200 }),
-      makeRow({ requests: 200, tokens: 8000, cost_usd: 0.2, cache_hits: 40, errors: 10, avg_latency_ms: 400 }),
+      makeRow({
+        requests: 100,
+        tokens: 5000,
+        cost_usd: 0.1,
+        cache_hits: 20,
+        errors: 5,
+        avg_latency_ms: 200,
+      }),
+      makeRow({
+        requests: 200,
+        tokens: 8000,
+        cost_usd: 0.2,
+        cache_hits: 40,
+        errors: 10,
+        avg_latency_ms: 400,
+      }),
     ];
     repo.getUsageTimeSeries.mockResolvedValue(rows);
 
@@ -129,7 +153,9 @@ describe('AnalyticsService.getUsageTimeSeries', () => {
   it('throws 400 when start is after end', async () => {
     const query = makeQuery({ start: '2024-01-31', end: '2024-01-01' });
 
-    await expect(service.getUsageTimeSeries(TENANT_ID, query)).rejects.toMatchObject({
+    await expect(
+      service.getUsageTimeSeries(TENANT_ID, query),
+    ).rejects.toMatchObject({
       status: HttpStatus.BAD_REQUEST,
       response: { error: 'invalid_date_range' },
     });
@@ -145,7 +171,10 @@ describe('AnalyticsService.getUsageTimeSeries', () => {
 
   it('converts Decimal cost_usd fields to Number', async () => {
     // Simulate Prisma Decimal returned as an object with toString()
-    const decimalLike = { toString: () => '0.00004800', valueOf: () => 0.000048 } as unknown as number;
+    const decimalLike = {
+      toString: () => '0.00004800',
+      valueOf: () => 0.000048,
+    } as unknown as number;
     repo.getUsageTimeSeries.mockResolvedValue([
       { ...makeRow(), cost_usd: Number(decimalLike) },
     ]);

@@ -1,0 +1,25 @@
+echo "🔍 pre-commit: linting staged files..."
+# lint-staged runs `eslint --fix` ONLY on files staged for this commit, then
+# re-stages the fixes. This avoids the repo-wide reformatting that plain
+# `npm run lint` (eslint --fix over the whole tree) would cause on every commit.
+npx lint-staged || {
+  echo "❌ Lint failed. Fix errors before committing."
+  exit 1
+}
+
+echo "🏗️  pre-commit: building..."
+npm run build || {
+  echo "❌ Build failed. Fix errors before committing."
+  exit 1
+}
+
+echo "🚫 pre-commit: checking for console.log in src/..."
+# Any console.log in committed production source fails the hook — use the NestJS
+# Logger. Spec files are excluded: the adapter integration tests intentionally
+# print provider responses for manual inspection during live-API runs.
+if grep -rn "console\.log" src/ --include="*.ts" | grep -v "\.spec\.ts:"; then
+  echo "❌ console.log found in src/. Use the NestJS Logger instead."
+  exit 1
+fi
+
+echo "✅ pre-commit checks passed."
