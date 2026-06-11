@@ -52,6 +52,13 @@ export class UsageJob {
 
   @Process('track-usage')
   async process(job: Job<UsageJobData>): Promise<void> {
+    // Step ordering is load-bearing:
+    //   Step 2 (createRequest) must precede step 3 (createRequestSpan) — FK on requestId.
+    //   Step 4 (upsertDailyUsage) must precede step 7 (budget check) — BudgetCheckerService
+    //   queries usage_daily; if checkBudget ran before upsertDailyUsage, the aggregate would
+    //   exclude the current request's cost, so the exceeded threshold might never be reached
+    //   for the request that actually crosses it.
+
     // Shallow copy so we can patch costUsd without mutating the job data
     const data: UsageJobData = { ...job.data };
 
