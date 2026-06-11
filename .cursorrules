@@ -1,0 +1,80 @@
+# LLM Gateway — Cursor Rules
+
+## Language and framework
+
+- TypeScript strict mode. No `any` type, ever. Use `unknown` and narrow it.
+- NestJS with module/service/repository/controller separation.
+- Prisma for all DB access. Raw `$queryRaw` only for complex aggregations.
+- BullMQ for async post-response work. Never do DB writes on the hot path.
+
+## Code style
+
+- No `console.log` anywhere in `src/`. Use `new Logger(ClassName.name)`.
+- No comments explaining what code does. Only comment WHY when it's non-obvious.
+- No multi-line docstrings. One short line max if a comment is needed at all.
+- No `any` in test files. Use proper jest mocked types.
+- Prefer editing existing files over creating new ones.
+- No features, abstractions, or error handling beyond what the task requires.
+
+## Architecture patterns (read before touching these areas)
+
+- Adapters (`src/modules/providers/adapters/`) follow a plugin pattern. No constructor
+  dependencies. Instantiated with `new()` in `onModuleInit`. See ADR-001.
+
+- BullMQ jobs run after `res.end()`, never before. `StreamService.proxy()` calls
+  `onComplete()` after the last SSE chunk. See ADR-002.
+
+- Rate limiting uses a Lua script in `sliding-window.lua`. The order is:
+  `estimateTokens → checkRpm → budget GET → checkTpm`. Do not reorder. See ADR-003.
+
+- Cache interceptor uses `of(null)` not `EMPTY` on cache hits. `EMPTY` causes EmptyError.
+  Cache key: SHA-256(tenantId+provider+model+messages+params). See ADR-004.
+
+- `AdminGuard` and `AuthGuard` are completely separate. Never put `AdminGuard` on tenant
+  endpoints or `AuthGuard` on management endpoints. See ADR-005.
+
+## Security rules (never violate)
+
+- `x-user-id` header / `userLabel` field must be an opaque token. Never store emails,
+  names, or real user identifiers. Callers pseudonymize before sending.
+- Message content limits: 100 messages max, 1M characters per message. Do not raise.
+- `AdminGuard` on all management endpoints (providers, tenants, key creation).
+- Raw provider API keys never stored — encrypt with AES-256-GCM via `encryption.util.ts`.
+- Every Redis key must be prefixed with `tenant:{id}:`.
+- Every DB query must include `tenantId` scoping (BaseRepository enforces this).
+
+## Database rules
+
+- Prisma UUID fields: `String @db.Uuid`, not `UUID`.
+- FK scalar fields declared before their `@relation` lines.
+- Every new table (except `tenants`) needs `tenantId String @db.Uuid`.
+- PII-sensitive columns must have a comment in `schema.prisma`.
+- Aggregation queries use `usage_daily`, not raw `requests` table (O(rows) at scale).
+- `$queryRaw` results: always call `Number(row.field)` on DECIMAL columns — Prisma returns
+  Decimal objects that JSON.stringify as `{ "d": [...] }` not plain numbers.
+- `$queryRaw` WHERE clauses: use `Prisma.sql` tagged templates, never string concatenation.
+
+## Repository exceptions (documented, intentional)
+
+- `TenantsRepository` does NOT extend `BaseRepository` — Tenant has no `tenantId` FK.
+- `RouterRepository` does NOT extend `BaseRepository` — needs NULL-aware tenant query.
+- Do not refactor either of these.
+
+## Testing
+
+- Mock SDK packages at module level: `jest.mock('openai')` not `jest.spyOn(prototype)`.
+- `ioredis-mock` for Redis tests — it executes Lua natively.
+- Integration tests: `const runTest = apiKey ? it : it.skip` (no real keys in CI).
+- No test should hit a real external API unless explicitly flagged as integration.
+
+## Commit format
+
+`type(scope): description` — types: feat | fix | docs | refactor | test | chore | perf
+
+## Key reference files
+
+- Architecture: `.claude/docs/architecture.md`
+- ADRs: `docs/decisions/ADR-001` through `ADR-005`
+- Per-module context: `src/modules/<name>/CLAUDE.md`
+- Task history: `.claude/docs/tasks.md`
+- Slash commands: `.claude/commands/`

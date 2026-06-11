@@ -1,0 +1,23 @@
+# Enforce conventional commit format: type(scope): description
+# Valid types: feat|fix|docs|refactor|test|chore|perf
+# The scope is optional, e.g. "feat: x" or "feat(gateway): x" both pass.
+# $1 is the path to the file holding the commit message.
+
+# Read the first non-comment, non-empty line of the commit message.
+commit_msg=$(grep -vE '^\s*#' "$1" | grep -vE '^\s*$' | head -n1)
+
+pattern='^(feat|fix|docs|refactor|test|chore|perf)(\([a-z0-9_-]+\))?: .+'
+
+if echo "$commit_msg" | grep -qE "$pattern"; then
+  echo "✅ commit message format ok."
+  exit 0
+fi
+
+echo "❌ Invalid commit message format."
+echo ""
+echo "   Got:      $commit_msg"
+echo "   Expected: type(scope): description"
+echo "   Types:    feat | fix | docs | refactor | test | chore | perf"
+echo "   Example:  feat(gateway): add streaming retry"
+echo ""
+exit 1

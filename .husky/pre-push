@@ -1,0 +1,9 @@
+echo "🧪 pre-push: running full test suite..."
+# NOTE: this runs the entire suite (~500 tests). If this becomes too slow,
+# switch to changed-files only: `npm test -- --onlyChanged --passWithNoTests`.
+npm test || {
+  echo "❌ Tests failed. Fix them before pushing."
+  exit 1
+}
+
+echo "✅ pre-push tests passed."

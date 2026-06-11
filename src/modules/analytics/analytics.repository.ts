@@ -9,14 +9,14 @@ import { RequestsQueryDto } from './dto/requests-query.dto';
 
 export interface UsageTimeSeriesParams {
   tenantId: string;
-  start: string;   // YYYY-MM-DD
-  end: string;     // YYYY-MM-DD
+  start: string; // YYYY-MM-DD
+  end: string; // YYYY-MM-DD
   provider?: string;
   model?: string;
 }
 
 export interface UsageTimeSeriesRow {
-  date: string;          // YYYY-MM-DD string after conversion
+  date: string; // YYYY-MM-DD string after conversion
   requests: number;
   tokens: number;
   cost_usd: number;
@@ -107,9 +107,7 @@ export class AnalyticsRepository {
       ? Prisma.sql`AND provider = ${provider}`
       : Prisma.empty;
 
-    const modelFilter = model
-      ? Prisma.sql`AND model = ${model}`
-      : Prisma.empty;
+    const modelFilter = model ? Prisma.sql`AND model = ${model}` : Prisma.empty;
 
     const rows = await this.prisma.$queryRaw<RawUsageRow[]>`
       SELECT
@@ -130,6 +128,9 @@ export class AnalyticsRepository {
       ORDER BY date ASC
     `;
 
+    // $queryRaw returns DECIMAL/NUMERIC columns as opaque Prisma Decimal objects, not plain JS
+    // numbers. JSON.stringify(Decimal) produces { "d": [...] } — the internal representation —
+    // not a numeric literal. Number() converts each field to a plain number before returning.
     return rows.map((r) => ({
       date: String(r.date),
       requests: Number(r.requests),
@@ -157,7 +158,7 @@ export class AnalyticsRepository {
       tenantId,
       ...(params.provider ? { provider: params.provider } : {}),
       ...(params.status ? { status: params.status } : {}),
-      ...((params.start || params.end)
+      ...(params.start || params.end
         ? {
             createdAt: {
               ...(params.start ? { gte: new Date(params.start) } : {}),
@@ -212,6 +213,7 @@ export class AnalyticsRepository {
       cacheType: r.cacheType ?? null,
       promptTokens: r.promptTokens ?? null,
       completionTokens: r.completionTokens ?? null,
+      // Prisma wraps DECIMAL columns in a Decimal object even on typed ORM queries; Number() required.
       costUsd: r.costUsd !== null ? Number(r.costUsd) : null,
       latencyMs: r.latencyMs ?? null,
       ttfbMs: r.ttfbMs ?? null,
@@ -251,6 +253,9 @@ export class AnalyticsRepository {
       ORDER BY cost_usd DESC
     `;
 
+    // $queryRaw returns DECIMAL/NUMERIC columns as opaque Prisma Decimal objects, not plain JS
+    // numbers. JSON.stringify(Decimal) produces { "d": [...] } — the internal representation —
+    // not a numeric literal. Number() converts each field to a plain number before returning.
     return rows.map((r) => ({
       provider: String(r.provider),
       cost_usd: Number(r.cost_usd),
@@ -277,6 +282,9 @@ export class AnalyticsRepository {
       ORDER BY cost_usd DESC
     `;
 
+    // $queryRaw returns DECIMAL/NUMERIC columns as opaque Prisma Decimal objects, not plain JS
+    // numbers. JSON.stringify(Decimal) produces { "d": [...] } — the internal representation —
+    // not a numeric literal. Number() converts each field to a plain number before returning.
     return rows.map((r) => ({
       model: String(r.model),
       provider: String(r.provider),

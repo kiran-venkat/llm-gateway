@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import sys
 import uuid
@@ -19,6 +20,7 @@ from livekit.plugins import deepgram, openai, silero
 
 from config import get_settings
 from metrics import TurnMetrics, store
+from services.gateway import get_latest_request_cost
 
 settings = get_settings()
 logging.basicConfig(level=settings.LOG_LEVEL)
@@ -39,6 +41,11 @@ async def entrypoint(ctx: JobContext):
     )
 
     await ctx.connect()
+
+    # Stable session ID for this conversation — injected as x-session-id
+    # on every LLM call so the gateway groups all turns into one RequestSpan.
+    session_id = f"voice-{ctx.room.name}-{uuid.uuid4().hex[:8]}"
+    logger.info("session started", extra={"session_id": session_id})
 
     # VAD — Silero runs locally, no API key needed
     try:
@@ -63,6 +70,7 @@ async def entrypoint(ctx: JobContext):
         model=settings.GATEWAY_MODEL,
         base_url=f"{settings.GATEWAY_URL}/v1",
         api_key=settings.GATEWAY_API_KEY,
+        extra_headers={"x-session-id": session_id},
     )
 
     # TTS — Deepgram Aura 2 (same Deepgram API key, no extra signup)
@@ -122,6 +130,19 @@ async def entrypoint(ctx: JobContext):
                     "total_ms": turn.total_latency_ms,
                 },
             )
+
+            # Backfill cost_usd ~2 s later once the gateway has written the row.
+            # Captures `turn` by closure so concurrent turns don't collide.
+            if role == "assistant":
+                async def fetch_cost(t: TurnMetrics = turn) -> None:
+                    await asyncio.sleep(2)
+                    cost = await get_latest_request_cost(session_id)
+                    if cost is not None:
+                        t.cost_usd = cost
+                        logger.info("turn cost recorded", extra={"cost_usd": cost})
+
+                asyncio.get_event_loop().create_task(fetch_cost())
+
         except Exception as e:
             logger.warning(f"metrics capture failed: {e}")
 

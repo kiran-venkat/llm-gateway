@@ -1,6 +1,6 @@
 import { Redis } from 'ioredis';
 import { ProviderConfig } from '@prisma/client';
-import { ProviderStatusService, ProviderStatus } from './provider-status.service';
+import { ProviderStatusService } from './provider-status.service';
 import { ProviderConfigsRepository } from './provider-configs.repository';
 import { AppConfigService } from '../../config/config.service';
 import { encrypt } from '../../common/utils/encryption.util';
@@ -89,11 +89,17 @@ describe('ProviderStatusService', () => {
 
       await svc.getStatus('tenant-xyz');
 
-      expect(redis.get).toHaveBeenCalledWith('tenant:tenant-xyz:providers:status');
+      expect(redis.get).toHaveBeenCalledWith(
+        'tenant:tenant-xyz:providers:status',
+      );
     });
 
     it('returns cached: false on cache miss', async () => {
-      const svc = makeService(makeRedisMock(), makeRepoMock(), makeConfigMock());
+      const svc = makeService(
+        makeRedisMock(),
+        makeRepoMock(),
+        makeConfigMock(),
+      );
       const result = await svc.getStatus(TENANT);
       expect(result.cached).toBe(false);
     });
@@ -113,7 +119,11 @@ describe('ProviderStatusService', () => {
     });
 
     it('returns empty providers array when no active configs', async () => {
-      const svc = makeService(makeRedisMock(), makeRepoMock([]), makeConfigMock());
+      const svc = makeService(
+        makeRedisMock(),
+        makeRepoMock([]),
+        makeConfigMock(),
+      );
       const result = await svc.getStatus(TENANT);
       expect(result.providers).toEqual([]);
     });
@@ -123,9 +133,11 @@ describe('ProviderStatusService', () => {
       const repo = makeRepoMock(configs);
       const svc = makeService(makeRedisMock(), repo, makeConfigMock());
 
-      const checkSpy = jest
-        .spyOn(svc, 'checkProvider')
-        .mockResolvedValue({ provider: 'anthropic', status: 'active', latencyMs: 50 });
+      const checkSpy = jest.spyOn(svc, 'checkProvider').mockResolvedValue({
+        provider: 'anthropic',
+        status: 'active',
+        latencyMs: 50,
+      });
 
       await svc.getStatus(TENANT);
 
@@ -153,7 +165,11 @@ describe('ProviderStatusService', () => {
 
   describe('checkProvider', () => {
     it('returns active when probe resolves quickly', async () => {
-      const svc = makeService(makeRedisMock(), makeRepoMock(), makeConfigMock());
+      const svc = makeService(
+        makeRedisMock(),
+        makeRepoMock(),
+        makeConfigMock(),
+      );
       jest.spyOn(svc, 'probe').mockResolvedValue(undefined);
 
       const result = await svc.checkProvider(makeConfig('anthropic'), TEST_KEY);
@@ -164,12 +180,18 @@ describe('ProviderStatusService', () => {
     });
 
     it('returns degraded when latency >= 3000ms', async () => {
-      const svc = makeService(makeRedisMock(), makeRepoMock(), makeConfigMock());
+      const svc = makeService(
+        makeRedisMock(),
+        makeRepoMock(),
+        makeConfigMock(),
+      );
       jest.spyOn(svc, 'probe').mockResolvedValue(undefined);
 
       // Simulate 3500ms elapsed between start and end
       let call = 0;
-      jest.spyOn(Date, 'now').mockImplementation(() => (call++ === 0 ? 1_000 : 4_500));
+      jest
+        .spyOn(Date, 'now')
+        .mockImplementation(() => (call++ === 0 ? 1_000 : 4_500));
 
       const result = await svc.checkProvider(makeConfig('openai'), TEST_KEY);
 
@@ -178,7 +200,11 @@ describe('ProviderStatusService', () => {
     });
 
     it('returns down with error message when probe throws', async () => {
-      const svc = makeService(makeRedisMock(), makeRepoMock(), makeConfigMock());
+      const svc = makeService(
+        makeRedisMock(),
+        makeRepoMock(),
+        makeConfigMock(),
+      );
       jest.spyOn(svc, 'probe').mockRejectedValue(new Error('Unauthorized'));
 
       const result = await svc.checkProvider(makeConfig('openai'), TEST_KEY);
@@ -191,9 +217,15 @@ describe('ProviderStatusService', () => {
     it('returns down when probe times out after 5000ms', async () => {
       jest.useFakeTimers();
 
-      const svc = makeService(makeRedisMock(), makeRepoMock(), makeConfigMock());
+      const svc = makeService(
+        makeRedisMock(),
+        makeRepoMock(),
+        makeConfigMock(),
+      );
       // Probe that never resolves
-      jest.spyOn(svc, 'probe').mockImplementation(() => new Promise<void>(() => {}));
+      jest
+        .spyOn(svc, 'probe')
+        .mockImplementation(() => new Promise<void>(() => {}));
 
       const promise = svc.checkProvider(makeConfig('anthropic'), TEST_KEY);
       await jest.advanceTimersByTimeAsync(5_001);
@@ -208,11 +240,15 @@ describe('ProviderStatusService', () => {
     it('does not time out before 5000ms', async () => {
       jest.useFakeTimers();
 
-      const svc = makeService(makeRedisMock(), makeRepoMock(), makeConfigMock());
+      const svc = makeService(
+        makeRedisMock(),
+        makeRepoMock(),
+        makeConfigMock(),
+      );
       let resolved = false;
 
       jest.spyOn(svc, 'probe').mockImplementation(async () => {
-        await new Promise<void>(res => setTimeout(res, 4_999));
+        await new Promise<void>((res) => setTimeout(res, 4_999));
         resolved = true;
       });
 
@@ -234,7 +270,11 @@ describe('ProviderStatusService', () => {
 
   describe('probe', () => {
     it('routes openai to probeOpenAI', async () => {
-      const svc = makeService(makeRedisMock(), makeRepoMock(), makeConfigMock());
+      const svc = makeService(
+        makeRedisMock(),
+        makeRepoMock(),
+        makeConfigMock(),
+      );
       const spy = jest.spyOn(svc, 'probeOpenAI').mockResolvedValue(undefined);
 
       await svc.probe('openai', 'key');
@@ -243,8 +283,14 @@ describe('ProviderStatusService', () => {
     });
 
     it('routes anthropic to probeAnthropic', async () => {
-      const svc = makeService(makeRedisMock(), makeRepoMock(), makeConfigMock());
-      const spy = jest.spyOn(svc, 'probeAnthropic').mockResolvedValue(undefined);
+      const svc = makeService(
+        makeRedisMock(),
+        makeRepoMock(),
+        makeConfigMock(),
+      );
+      const spy = jest
+        .spyOn(svc, 'probeAnthropic')
+        .mockResolvedValue(undefined);
 
       await svc.probe('anthropic', 'key');
 
@@ -252,7 +298,11 @@ describe('ProviderStatusService', () => {
     });
 
     it('routes gemini to probeGemini', async () => {
-      const svc = makeService(makeRedisMock(), makeRepoMock(), makeConfigMock());
+      const svc = makeService(
+        makeRedisMock(),
+        makeRepoMock(),
+        makeConfigMock(),
+      );
       const spy = jest.spyOn(svc, 'probeGemini').mockResolvedValue(undefined);
 
       await svc.probe('gemini', 'key');
@@ -261,7 +311,11 @@ describe('ProviderStatusService', () => {
     });
 
     it('throws for unknown provider', async () => {
-      const svc = makeService(makeRedisMock(), makeRepoMock(), makeConfigMock());
+      const svc = makeService(
+        makeRedisMock(),
+        makeRepoMock(),
+        makeConfigMock(),
+      );
 
       await expect(svc.probe('cohere', 'key')).rejects.toThrow(
         'No probe defined for provider: cohere',

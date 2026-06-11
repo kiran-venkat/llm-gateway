@@ -1,4 +1,5 @@
 import time
+import uuid
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +10,10 @@ from config import settings
 from metrics import store
 
 app = FastAPI(title="Voice Agent API")
+
+# In-memory map of room_name → session_id.
+# Populated on POST /voice/token; read by the agent via GET /voice/session/{room_name}.
+active_sessions: dict[str, str] = {}
 
 app.add_middleware(
     CORSMiddleware,
@@ -45,6 +50,9 @@ async def create_token(body: TokenRequest):
     if not body.room_name or not body.participant_name:
         raise HTTPException(status_code=400, detail="room_name and participant_name are required")
 
+    session_id = f"voice-{body.room_name}-{uuid.uuid4().hex[:8]}"
+    active_sessions[body.room_name] = session_id
+
     now = int(time.time())
     claims = {
         "iss": settings.LIVEKIT_API_KEY,
@@ -59,7 +67,15 @@ async def create_token(body: TokenRequest):
         },
     }
     token = jwt.encode(claims, settings.LIVEKIT_API_SECRET, algorithm="HS256")
-    return {"token": token}
+    return {"token": token, "session_id": session_id}
+
+
+@app.get("/voice/session/{room_name}")
+async def get_session(room_name: str):
+    session_id = active_sessions.get(room_name)
+    if session_id is None:
+        raise HTTPException(status_code=404, detail=f"No active session for room '{room_name}'")
+    return {"session_id": session_id}
 
 
 @app.get("/voice/metrics")
@@ -77,6 +93,7 @@ async def get_metrics():
                 "tts_ttfb_ms": t.tts_ttfb_ms,
                 "total_latency_ms": t.total_latency_ms,
                 "transcript": t.transcript,
+                "cost_usd": t.cost_usd,
             }
             for t in store.get_all()
         ],
@@ -85,5 +102,19 @@ async def get_metrics():
 
 @app.get("/voice/metrics/summary")
 async def get_metrics_summary():
-    """Quick summary — just the averages."""
+    """Quick summary — averages + total cost."""
     return store.get_summary()
+
+
+@app.get("/voice/metrics/cost")
+async def get_metrics_cost():
+    """Per-turn cost breakdown and session total."""
+    turns = store.get_all()
+    return {
+        "total_cost_usd": store.get_session_cost(),
+        "turn_costs": [
+            {"turn_id": t.turn_id, "cost_usd": t.cost_usd}
+            for t in turns
+            if t.cost_usd is not None
+        ],
+    }
