@@ -55,7 +55,15 @@ const COST_RESPONSE: CostBreakdownResponse = {
   period: { start: '2024-01-01', end: '2024-01-31' },
   total_cost_usd: 1.0,
   by_provider: [{ provider: 'openai', cost_usd: 1.0, requests: 100, pct: 100 }],
-  by_model: [{ model: 'gpt-4o', provider: 'openai', cost_usd: 1.0, requests: 100, pct: 100 }],
+  by_model: [
+    {
+      model: 'gpt-4o',
+      provider: 'openai',
+      cost_usd: 1.0,
+      requests: 100,
+      pct: 100,
+    },
+  ],
 };
 
 function makeService(): jest.Mocked<AnalyticsService> {
@@ -133,15 +141,24 @@ describe('AnalyticsController — GET /analytics/usage', () => {
   it('passes tenantId and query to AnalyticsService.getUsageTimeSeries', async () => {
     const query = makeQuery({ provider: 'openai' });
     await controller.getUsageTimeSeries(TENANT, query);
-    expect(service.getUsageTimeSeries).toHaveBeenCalledWith(TENANT.tenantId, query);
+    expect(service.getUsageTimeSeries).toHaveBeenCalledWith(
+      TENANT.tenantId,
+      query,
+    );
   });
 
   it('propagates 400 from service when start > end', async () => {
     service.getUsageTimeSeries.mockRejectedValue(
-      new HttpException({ error: 'invalid_date_range', message: 'start must not be after end' }, HttpStatus.BAD_REQUEST),
+      new HttpException(
+        { error: 'invalid_date_range', message: 'start must not be after end' },
+        HttpStatus.BAD_REQUEST,
+      ),
     );
     await expect(
-      controller.getUsageTimeSeries(TENANT, makeQuery({ start: '2024-01-31', end: '2024-01-01' })),
+      controller.getUsageTimeSeries(
+        TENANT,
+        makeQuery({ start: '2024-01-31', end: '2024-01-01' }),
+      ),
     ).rejects.toThrow(HttpException);
   });
 });
@@ -159,7 +176,9 @@ describe('AnalyticsController — GET /analytics/requests', () => {
     controller = new AnalyticsController(service);
   });
 
-  function makeRequestsQuery(overrides: Partial<RequestsQueryDto> = {}): RequestsQueryDto {
+  function makeRequestsQuery(
+    overrides: Partial<RequestsQueryDto> = {},
+  ): RequestsQueryDto {
     const dto = new RequestsQueryDto();
     dto.page = 1;
     dto.limit = 50;
@@ -208,7 +227,10 @@ describe('AnalyticsController — GET /analytics/cost', () => {
   it('passes tenantId and query to AnalyticsService.getCostBreakdown', async () => {
     const query = makeCostQuery();
     await controller.getCostBreakdown(TENANT, query);
-    expect(service.getCostBreakdown).toHaveBeenCalledWith(TENANT.tenantId, query);
+    expect(service.getCostBreakdown).toHaveBeenCalledWith(
+      TENANT.tenantId,
+      query,
+    );
   });
 
   it('T42 confirmed: GET /analytics/cache is on AnalyticsController', () => {

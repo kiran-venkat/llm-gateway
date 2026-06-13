@@ -58,7 +58,11 @@ describe('RequestIdMiddleware', () => {
   });
 
   it('calls next()', () => {
-    middleware.use(makeReq() as Request, makeRes() as unknown as Response, next);
+    middleware.use(
+      makeReq() as Request,
+      makeRes() as unknown as Response,
+      next,
+    );
     expect(next).toHaveBeenCalledTimes(1);
   });
 

@@ -1,6 +1,9 @@
 import OpenAI, { APIError } from 'openai';
 import { IProviderAdapter } from '../../../../common/interfaces/provider-adapter.interface';
-import { GatewayRequest, Message } from '../../../../common/dto/gateway-request.dto';
+import {
+  GatewayRequest,
+  Message,
+} from '../../../../common/dto/gateway-request.dto';
 import { GatewayResponse } from '../../../../common/dto/gateway-response.dto';
 import { StreamChunk } from '../../../../common/dto/stream-chunk.dto';
 import { GatewayError } from '../../../../common/dto/gateway-error.dto';
@@ -8,15 +11,22 @@ import { GatewayError } from '../../../../common/dto/gateway-error.dto';
 export class OpenAIAdapter implements IProviderAdapter {
   readonly name = 'openai';
 
-  async complete(request: GatewayRequest, apiKey: string): Promise<GatewayResponse> {
+  async complete(
+    request: GatewayRequest,
+    apiKey: string,
+  ): Promise<GatewayResponse> {
     try {
       const client = new OpenAI({ apiKey });
 
       const resp = await client.chat.completions.create({
         model: request.model,
         messages: request.messages,
-        ...(request.maxTokens !== undefined && { max_tokens: request.maxTokens }),
-        ...(request.temperature !== undefined && { temperature: request.temperature }),
+        ...(request.maxTokens !== undefined && {
+          max_tokens: request.maxTokens,
+        }),
+        ...(request.temperature !== undefined && {
+          temperature: request.temperature,
+        }),
       });
 
       return {
@@ -33,14 +43,19 @@ export class OpenAIAdapter implements IProviderAdapter {
     }
   }
 
-  async *completeStream(request: GatewayRequest, apiKey: string): AsyncIterable<StreamChunk> {
+  async *completeStream(
+    request: GatewayRequest,
+    apiKey: string,
+  ): AsyncIterable<StreamChunk> {
     const client = new OpenAI({ apiKey });
 
     const stream = await client.chat.completions.create({
       model: request.model,
       messages: request.messages,
       ...(request.maxTokens !== undefined && { max_tokens: request.maxTokens }),
-      ...(request.temperature !== undefined && { temperature: request.temperature }),
+      ...(request.temperature !== undefined && {
+        temperature: request.temperature,
+      }),
       stream: true,
     });
 
@@ -141,9 +156,7 @@ export class OpenAIAdapter implements IProviderAdapter {
     };
   }
 
-  private mapFinishReason(
-    reason: string | null,
-  ): 'stop' | 'length' | 'error' {
+  private mapFinishReason(reason: string | null): 'stop' | 'length' | 'error' {
     if (reason === 'length') return 'length';
     return 'stop';
   }

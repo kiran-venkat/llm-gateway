@@ -6,9 +6,7 @@ import * as Joi from 'joi';
  * never a silent runtime error discovered on the first real request.
  */
 export const configValidationSchema = Joi.object({
-  NODE_ENV: Joi.string()
-    .valid('development', 'production', 'test')
-    .required(),
+  NODE_ENV: Joi.string().valid('development', 'production', 'test').required(),
 
   PORT: Joi.number().integer().min(1).max(65535).default(3000),
 

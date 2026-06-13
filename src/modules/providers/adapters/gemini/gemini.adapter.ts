@@ -37,7 +37,8 @@ export class GeminiAdapter implements IProviderAdapter {
         model: request.model,
         provider: 'gemini',
         promptTokens: resp.response.usageMetadata?.promptTokenCount ?? 0,
-        completionTokens: resp.response.usageMetadata?.candidatesTokenCount ?? 0,
+        completionTokens:
+          resp.response.usageMetadata?.candidatesTokenCount ?? 0,
         totalTokens: resp.response.usageMetadata?.totalTokenCount ?? 0,
         finishReason: this.mapFinishReason(candidate?.finishReason),
       };

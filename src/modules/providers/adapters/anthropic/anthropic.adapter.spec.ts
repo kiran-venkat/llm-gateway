@@ -10,7 +10,8 @@ const mockCreate = jest.fn();
 const mockStream = jest.fn();
 
 jest.mock('@anthropic-ai/sdk', () => {
-  const actual = jest.requireActual<typeof import('@anthropic-ai/sdk')>('@anthropic-ai/sdk');
+  const actual =
+    jest.requireActual<typeof import('@anthropic-ai/sdk')>('@anthropic-ai/sdk');
   return {
     ...actual,
     default: jest.fn().mockImplementation(() => ({
@@ -23,7 +24,9 @@ jest.mock('@anthropic-ai/sdk', () => {
 // Fixtures
 // ---------------------------------------------------------------------------
 
-function makeMessage(overrides: Partial<Anthropic.Message> = {}): Anthropic.Message {
+function makeMessage(
+  overrides: Partial<Anthropic.Message> = {},
+): Anthropic.Message {
   return {
     id: 'msg_test',
     type: 'message',
@@ -63,10 +66,12 @@ describe('AnthropicAdapter (unit)', () => {
   describe('complete()', () => {
     it('translates system message to top-level param, not in messages[]', async () => {
       let capturedArgs: Anthropic.MessageCreateParamsNonStreaming | undefined;
-      mockCreate.mockImplementation(async (args: Anthropic.MessageCreateParamsNonStreaming) => {
-        capturedArgs = args;
-        return makeMessage();
-      });
+      mockCreate.mockImplementation(
+        async (args: Anthropic.MessageCreateParamsNonStreaming) => {
+          capturedArgs = args;
+          return makeMessage();
+        },
+      );
 
       const request: GatewayRequest = {
         model: 'claude-haiku-4-5-20251001',
@@ -86,7 +91,9 @@ describe('AnthropicAdapter (unit)', () => {
 
     it('maps input_tokens → promptTokens and output_tokens → completionTokens', async () => {
       mockCreate.mockResolvedValue(
-        makeMessage({ usage: { input_tokens: 42, output_tokens: 7 } as Anthropic.Usage }),
+        makeMessage({
+          usage: { input_tokens: 42, output_tokens: 7 } as Anthropic.Usage,
+        }),
       );
 
       const request: GatewayRequest = {
@@ -216,7 +223,9 @@ describe('AnthropicAdapter (unit)', () => {
     });
 
     it("maps status 400 with 'context' in message → context_too_long", () => {
-      const result = adapter.mapError(makeApiError(400, 'context window exceeded'));
+      const result = adapter.mapError(
+        makeApiError(400, 'context window exceeded'),
+      );
       expect(result.code).toBe('context_too_long');
       expect(result.retryable).toBe(false);
     });
@@ -280,7 +289,10 @@ describe('AnthropicAdapter (integration)', () => {
       const request: GatewayRequest = {
         model: 'claude-haiku-4-5-20251001',
         messages: [
-          { role: 'user', content: 'Reply with exactly three words: hello world test' },
+          {
+            role: 'user',
+            content: 'Reply with exactly three words: hello world test',
+          },
         ],
         maxTokens: 20,
         tenantId: 'integration-test',
@@ -293,10 +305,15 @@ describe('AnthropicAdapter (integration)', () => {
       expect(result.provider).toBe('anthropic');
       expect(result.promptTokens).toBeGreaterThan(0);
       expect(result.completionTokens).toBeGreaterThan(0);
-      expect(result.totalTokens).toBe(result.promptTokens + result.completionTokens);
+      expect(result.totalTokens).toBe(
+        result.promptTokens + result.completionTokens,
+      );
       expect(['stop', 'length']).toContain(result.finishReason);
 
-      console.log('[integration] Anthropic response:', JSON.stringify(result, null, 2));
+      console.log(
+        '[integration] Anthropic response:',
+        JSON.stringify(result, null, 2),
+      );
     },
     15_000,
   );

@@ -73,7 +73,9 @@ describe('RateLimitService', () => {
     for (let i = 0; i < RPM_LIMIT; i++) {
       await service.checkRpm(TENANT, PROVIDER, RPM_LIMIT);
     }
-    expect((await service.checkRpm(TENANT, PROVIDER, RPM_LIMIT)).allowed).toBe(false);
+    expect((await service.checkRpm(TENANT, PROVIDER, RPM_LIMIT)).allowed).toBe(
+      false,
+    );
 
     // Advance Date.now() by 61 seconds so all entries fall outside the window.
     const future = Date.now() + 61_000;
@@ -106,14 +108,22 @@ describe('RateLimitService', () => {
   // -------------------------------------------------------------------------
 
   it('getRemainingRpm returns the correct remaining count', async () => {
-    const initialRemaining = await service.getRemainingRpm(TENANT, PROVIDER, RPM_LIMIT);
+    const initialRemaining = await service.getRemainingRpm(
+      TENANT,
+      PROVIDER,
+      RPM_LIMIT,
+    );
     expect(initialRemaining).toBe(RPM_LIMIT);
 
     await service.checkRpm(TENANT, PROVIDER, RPM_LIMIT);
     await service.checkRpm(TENANT, PROVIDER, RPM_LIMIT);
     await service.checkRpm(TENANT, PROVIDER, RPM_LIMIT);
 
-    const remaining = await service.getRemainingRpm(TENANT, PROVIDER, RPM_LIMIT);
+    const remaining = await service.getRemainingRpm(
+      TENANT,
+      PROVIDER,
+      RPM_LIMIT,
+    );
     expect(remaining).toBe(RPM_LIMIT - 3);
   });
 
@@ -121,7 +131,11 @@ describe('RateLimitService', () => {
     for (let i = 0; i < RPM_LIMIT; i++) {
       await service.checkRpm(TENANT, PROVIDER, RPM_LIMIT);
     }
-    const remaining = await service.getRemainingRpm(TENANT, PROVIDER, RPM_LIMIT);
+    const remaining = await service.getRemainingRpm(
+      TENANT,
+      PROVIDER,
+      RPM_LIMIT,
+    );
     expect(remaining).toBe(0);
   });
 
@@ -147,7 +161,9 @@ describe('RateLimitService', () => {
     for (let i = 0; i < RPM_LIMIT; i++) {
       await service.checkRpm(TENANT, PROVIDER, RPM_LIMIT);
     }
-    expect((await service.checkRpm(TENANT, PROVIDER, RPM_LIMIT)).allowed).toBe(false);
+    expect((await service.checkRpm(TENANT, PROVIDER, RPM_LIMIT)).allowed).toBe(
+      false,
+    );
 
     // TPM bucket should still be clean
     const tpm = await service.checkTpm(TENANT, PROVIDER, 500, RPM_LIMIT);

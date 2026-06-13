@@ -58,7 +58,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // Standard Retry-After header (RFC 9110 §10.2.4) for 429 responses.
     // The value is taken from retry_after_ms in the structured body when present.
     if (status === 429) {
-      const retryMs = (body as unknown as Record<string, unknown>)['retry_after_ms'];
+      const retryMs = (body as unknown as Record<string, unknown>)[
+        'retry_after_ms'
+      ];
       if (typeof retryMs === 'number') {
         res.setHeader('Retry-After', String(Math.ceil(retryMs / 1000)));
       }
@@ -84,8 +86,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         // RateLimitGuard can include extra context (retry_after_ms, limit_type)
         // without the filter discarding them.
         const structured = raw as Record<string, unknown>;
-        const message =
-          structured['message']?.toString() ?? exception.message;
+        const message = structured['message']?.toString() ?? exception.message;
         return {
           status,
           body: {

@@ -38,10 +38,7 @@ describe('ProviderConfigsService', () => {
   let mockRepo: jest.Mocked<
     Pick<
       ProviderConfigsRepository,
-      | 'findByTenantAndProvider'
-      | 'findActiveByTenant'
-      | 'create'
-      | 'update'
+      'findByTenantAndProvider' | 'findActiveByTenant' | 'create' | 'update'
     >
   >;
 
@@ -152,7 +149,11 @@ describe('ProviderConfigsService', () => {
 
     it('returns correct provider and rate limits', async () => {
       mockRepo.findActiveByTenant.mockResolvedValue([
-        makeConfig({ provider: 'anthropic', rateLimitRpm: 30, rateLimitTpm: 200000 }),
+        makeConfig({
+          provider: 'anthropic',
+          rateLimitRpm: 30,
+          rateLimitTpm: 200000,
+        }),
       ]);
 
       const [item] = await service.list('tenant-1');
@@ -169,7 +170,10 @@ describe('ProviderConfigsService', () => {
     it('sets is_active = false — soft delete, not hard delete', async () => {
       const existing = makeConfig();
       mockRepo.findByTenantAndProvider.mockResolvedValue(existing);
-      mockRepo.update.mockResolvedValue({ ...existing, isActive: false } as ProviderConfig);
+      mockRepo.update.mockResolvedValue({
+        ...existing,
+        isActive: false,
+      } as ProviderConfig);
 
       await service.remove('tenant-1', 'openai');
 
@@ -210,7 +214,9 @@ describe('ProviderConfigsRepository.getDecryptedApiKey()', () => {
     const mockDelegate = {
       findFirst: async ({ where }: { where: Record<string, unknown> }) =>
         store.find((r) =>
-          Object.entries(where).every(([k, v]) => (r as Record<string, unknown>)[k] === v),
+          Object.entries(where).every(
+            ([k, v]) => (r as Record<string, unknown>)[k] === v,
+          ),
         ) ?? null,
       findMany: async () => [],
       create: async () => store[0],
@@ -219,9 +225,8 @@ describe('ProviderConfigsRepository.getDecryptedApiKey()', () => {
     };
 
     // Build repository wired to the mock delegate and config
-    const { ProviderConfigsRepository: Repo } = await import(
-      './provider-configs.repository'
-    );
+    const { ProviderConfigsRepository: Repo } =
+      await import('./provider-configs.repository');
 
     const mockPrisma = {
       providerConfig: mockDelegate,

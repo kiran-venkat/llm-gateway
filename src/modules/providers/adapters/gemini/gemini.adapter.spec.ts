@@ -60,10 +60,12 @@ describe('GeminiAdapter (unit)', () => {
   describe('complete()', () => {
     it("maps 'assistant' role → 'model' in request to Gemini", async () => {
       let capturedContents: unknown;
-      mockGenerateContent.mockImplementation(({ contents }: { contents: unknown }) => {
-        capturedContents = contents;
-        return Promise.resolve(makeResponse());
-      });
+      mockGenerateContent.mockImplementation(
+        ({ contents }: { contents: unknown }) => {
+          capturedContents = contents;
+          return Promise.resolve(makeResponse());
+        },
+      );
 
       const request: GatewayRequest = {
         model: 'gemini-2.0-flash-001',
@@ -77,17 +79,22 @@ describe('GeminiAdapter (unit)', () => {
 
       await adapter.complete(request, FAKE_KEY);
 
-      const contents = capturedContents as Array<{ role: string; parts: unknown[] }>;
+      const contents = capturedContents as Array<{
+        role: string;
+        parts: unknown[];
+      }>;
       expect(contents[1].role).toBe('model');
       expect(contents[0].role).toBe('user');
     });
 
     it('prepends system message to first user message text', async () => {
       let capturedContents: unknown;
-      mockGenerateContent.mockImplementation(({ contents }: { contents: unknown }) => {
-        capturedContents = contents;
-        return Promise.resolve(makeResponse());
-      });
+      mockGenerateContent.mockImplementation(
+        ({ contents }: { contents: unknown }) => {
+          capturedContents = contents;
+          return Promise.resolve(makeResponse());
+        },
+      );
 
       const request: GatewayRequest = {
         model: 'gemini-2.0-flash-001',
@@ -100,17 +107,26 @@ describe('GeminiAdapter (unit)', () => {
 
       await adapter.complete(request, FAKE_KEY);
 
-      const contents = capturedContents as Array<{ role: string; parts: [{ text: string }] }>;
+      const contents = capturedContents as Array<{
+        role: string;
+        parts: [{ text: string }];
+      }>;
       // System message is removed; only user message remains
       expect(contents).toHaveLength(1);
       expect(contents[0].role).toBe('user');
-      expect(contents[0].parts[0].text).toBe('You are a helpful assistant.\n\nHello');
+      expect(contents[0].parts[0].text).toBe(
+        'You are a helpful assistant.\n\nHello',
+      );
     });
 
     it('reads promptTokenCount from usageMetadata', async () => {
       mockGenerateContent.mockResolvedValue(
         makeResponse({
-          usageMetadata: { promptTokenCount: 42, candidatesTokenCount: 7, totalTokenCount: 49 },
+          usageMetadata: {
+            promptTokenCount: 42,
+            candidatesTokenCount: 7,
+            totalTokenCount: 49,
+          },
         }),
       );
 
@@ -144,7 +160,11 @@ describe('GeminiAdapter (unit)', () => {
       mockGenerateContent.mockResolvedValue(makeResponse());
 
       const result = await adapter.complete(
-        { model: 'gemini-2.0-flash-001', messages: [{ role: 'user', content: 'Hi' }], tenantId: 't' },
+        {
+          model: 'gemini-2.0-flash-001',
+          messages: [{ role: 'user', content: 'Hi' }],
+          tenantId: 't',
+        },
         FAKE_KEY,
       );
       expect(result.finishReason).toBe('stop');
@@ -159,12 +179,20 @@ describe('GeminiAdapter (unit)', () => {
               finishReason: 'MAX_TOKENS',
             },
           ],
-          usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },
+          usageMetadata: {
+            promptTokenCount: 10,
+            candidatesTokenCount: 5,
+            totalTokenCount: 15,
+          },
         }),
       );
 
       const result = await adapter.complete(
-        { model: 'gemini-2.0-flash-001', messages: [{ role: 'user', content: 'Hi' }], tenantId: 't' },
+        {
+          model: 'gemini-2.0-flash-001',
+          messages: [{ role: 'user', content: 'Hi' }],
+          tenantId: 't',
+        },
         FAKE_KEY,
       );
       expect(result.finishReason).toBe('length');
@@ -258,7 +286,9 @@ describe('GeminiAdapter (unit)', () => {
     });
 
     it("maps error message containing 'context' → context_too_long", () => {
-      const result = adapter.mapError(new Error('context window exceeded limit'));
+      const result = adapter.mapError(
+        new Error('context window exceeded limit'),
+      );
       expect(result.code).toBe('context_too_long');
       expect(result.retryable).toBe(false);
       expect(result.statusCode).toBe(400);
@@ -284,7 +314,10 @@ describe('GeminiAdapter (unit)', () => {
       expect(result).toHaveLength(3);
       expect(result[0]).toEqual({ role: 'user', parts: [{ text: 'Hello' }] });
       expect(result[1]).toEqual({ role: 'model', parts: [{ text: '' }] });
-      expect(result[2]).toEqual({ role: 'user', parts: [{ text: 'Actually nevermind' }] });
+      expect(result[2]).toEqual({
+        role: 'user',
+        parts: [{ text: 'Actually nevermind' }],
+      });
     });
 
     it('inserts empty user message between two consecutive model messages', () => {
@@ -340,7 +373,9 @@ describe('GeminiAdapter (unit)', () => {
 
   describe('estimateTokens()', () => {
     it('uses ~4 chars per token heuristic', () => {
-      const result = adapter.estimateTokens([{ role: 'user', content: 'a'.repeat(40) }]);
+      const result = adapter.estimateTokens([
+        { role: 'user', content: 'a'.repeat(40) },
+      ]);
       expect(result).toBe(10);
     });
   });
@@ -358,7 +393,10 @@ describe('GeminiAdapter (integration)', () => {
     const request: GatewayRequest = {
       model: 'gemini-2.0-flash-001',
       messages: [
-        { role: 'user', content: 'Reply with exactly three words: hello world test' },
+        {
+          role: 'user',
+          content: 'Reply with exactly three words: hello world test',
+        },
       ],
       maxTokens: 20,
       tenantId: 'integration-test',
@@ -371,6 +409,9 @@ describe('GeminiAdapter (integration)', () => {
     expect(result.promptTokens).toBeGreaterThan(0);
     expect(result.model).toBe('gemini-2.0-flash-001');
 
-    console.log('[integration] Gemini response:', JSON.stringify(result, null, 2));
+    console.log(
+      '[integration] Gemini response:',
+      JSON.stringify(result, null, 2),
+    );
   });
 });

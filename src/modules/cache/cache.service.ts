@@ -13,14 +13,14 @@ export interface CachedResponse {
 }
 
 export interface CacheTopEntry {
-  hash: string;       // first 16 chars of requestHash
+  hash: string; // first 16 chars of requestHash
   hit_count: number;
   cost_saved: number;
 }
 
 export interface CacheStats {
   total_hits: number;
-  hit_rate: number;         // 0-1 (e.g. 0.6 for 60%)
+  hit_rate: number; // 0-1 (e.g. 0.6 for 60%)
   cost_saved_usd: number;
   top_entries: CacheTopEntry[];
 }
@@ -141,10 +141,7 @@ export class CacheService {
         },
       });
     } catch (err: unknown) {
-      this.logger.warn(
-        `Cache recordHit failed for hash=${requestHash}`,
-        err,
-      );
+      this.logger.warn(`Cache recordHit failed for hash=${requestHash}`, err);
     }
   }
 

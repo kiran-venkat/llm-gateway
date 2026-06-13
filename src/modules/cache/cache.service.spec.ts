@@ -27,7 +27,13 @@ function makeRedis() {
   };
 }
 
-function makePrisma(entries: { requestHash: string; hitCount: number; costSavedUsd: number }[] = []) {
+function makePrisma(
+  entries: {
+    requestHash: string;
+    hitCount: number;
+    costSavedUsd: number;
+  }[] = [],
+) {
   return {
     cacheEntry: {
       findMany: jest.fn().mockResolvedValue(entries),
@@ -108,7 +114,9 @@ describe('CacheService — stats increments', () => {
 
   it('increments misses counter', async () => {
     await svc.incrementMiss(TENANT);
-    expect(redis.incr).toHaveBeenCalledWith(`tenant:${TENANT}:cache:stats:misses`);
+    expect(redis.incr).toHaveBeenCalledWith(
+      `tenant:${TENANT}:cache:stats:misses`,
+    );
   });
 
   it('does not throw when redis throws during incrementHit', async () => {
@@ -175,8 +183,16 @@ describe('CacheService — getStats', () => {
 
   it('returns top_entries mapped from prisma with hash truncated to 16 chars', async () => {
     prisma.cacheEntry.findMany.mockResolvedValue([
-      { requestHash: 'abcdef1234567890abcdef1234567890', hitCount: 5, costSavedUsd: 0.00024 },
-      { requestHash: 'deadbeefdeadbeefdeadbeefdeadbeef', hitCount: 2, costSavedUsd: 0.000096 },
+      {
+        requestHash: 'abcdef1234567890abcdef1234567890',
+        hitCount: 5,
+        costSavedUsd: 0.00024,
+      },
+      {
+        requestHash: 'deadbeefdeadbeefdeadbeefdeadbeef',
+        hitCount: 2,
+        costSavedUsd: 0.000096,
+      },
     ]);
     const stats = await svc.getStats(TENANT);
     expect(stats.top_entries).toEqual([
@@ -235,7 +251,9 @@ describe('CacheService — upsertEntry', () => {
 
     expect(prisma.cacheEntry.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { tenantId_requestHash: { tenantId: TENANT, requestHash: 'abc123' } },
+        where: {
+          tenantId_requestHash: { tenantId: TENANT, requestHash: 'abc123' },
+        },
         create: expect.objectContaining({
           tenantId: TENANT,
           requestHash: 'abc123',
@@ -308,7 +326,9 @@ describe('CacheService — recordHit', () => {
     await svc.recordHit(TENANT, 'abc123', 30);
 
     expect(prisma.cacheEntry.update).toHaveBeenCalledWith({
-      where: { tenantId_requestHash: { tenantId: TENANT, requestHash: 'abc123' } },
+      where: {
+        tenantId_requestHash: { tenantId: TENANT, requestHash: 'abc123' },
+      },
       data: {
         hitCount: { increment: 1 },
         lastHitAt: expect.any(Date),

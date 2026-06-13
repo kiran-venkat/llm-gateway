@@ -87,7 +87,9 @@ export class AppLoggerService {
       } else {
         this.nestLogger.error(
           message,
-          typeof metaOrError === 'string' ? metaOrError : String(metaOrError ?? ''),
+          typeof metaOrError === 'string'
+            ? metaOrError
+            : String(metaOrError ?? ''),
         );
       }
     }
@@ -103,7 +105,11 @@ export class AppLoggerService {
 
   // ── private helpers ─────────────────────────────────────────────────────────
 
-  private write(level: LogEntry['level'], message: string, meta?: LogMeta): void {
+  private write(
+    level: LogEntry['level'],
+    message: string,
+    meta?: LogMeta,
+  ): void {
     const entry: LogEntry = {
       level,
       timestamp: new Date().toISOString(),
