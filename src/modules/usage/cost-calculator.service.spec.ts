@@ -26,7 +26,7 @@ const GPT4O_ROW = {
 };
 
 function makePrisma(
-  rows: typeof HAIKU_ROW[] = [HAIKU_ROW, GPT4O_ROW],
+  rows: (typeof HAIKU_ROW)[] = [HAIKU_ROW, GPT4O_ROW],
 ): jest.Mocked<PrismaService> {
   return {
     modelPricing: {
@@ -71,7 +71,10 @@ describe('CostCalculatorService', () => {
 
     it('returns 0 and logs a warning for an unknown model', async () => {
       const warnSpy = jest
-        .spyOn((service as unknown as { logger: { warn: jest.Mock } }).logger, 'warn')
+        .spyOn(
+          (service as unknown as { logger: { warn: jest.Mock } }).logger,
+          'warn',
+        )
         .mockImplementation(() => undefined);
 
       const cost = await service.calculateCost(
@@ -137,9 +140,7 @@ describe('CostCalculatorService', () => {
       await service.onModuleInit();
 
       // Haiku is known, gpt-4o is not yet loaded
-      expect(
-        await service.calculateCost('openai', 'gpt-4o', 10, 5),
-      ).toBe(0);
+      expect(await service.calculateCost('openai', 'gpt-4o', 10, 5)).toBe(0);
 
       // Reload with both rows
       (prisma.modelPricing.findMany as jest.Mock).mockResolvedValue([

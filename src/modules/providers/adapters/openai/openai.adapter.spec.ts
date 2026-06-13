@@ -33,7 +33,11 @@ function makeCompletion(
     choices: [
       {
         index: 0,
-        message: { role: 'assistant', content: 'hello world test', refusal: null },
+        message: {
+          role: 'assistant',
+          content: 'hello world test',
+          refusal: null,
+        },
         finish_reason: 'stop',
         logprobs: null,
       },
@@ -88,9 +92,13 @@ describe('OpenAIAdapter (unit)', () => {
 
   describe('complete()', () => {
     it('passes messages through without transformation', async () => {
-      let capturedArgs: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming | undefined;
+      let capturedArgs:
+        | OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
+        | undefined;
       mockCreate.mockImplementation(
-        async (args: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming) => {
+        async (
+          args: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+        ) => {
           capturedArgs = args;
           return makeCompletion();
         },
@@ -179,7 +187,11 @@ describe('OpenAIAdapter (unit)', () => {
           choices: [
             {
               index: 0,
-              message: { role: 'assistant', content: 'truncated', refusal: null },
+              message: {
+                role: 'assistant',
+                content: 'truncated',
+                refusal: null,
+              },
               finish_reason: 'length',
               logprobs: null,
             },
@@ -203,11 +215,11 @@ describe('OpenAIAdapter (unit)', () => {
   describe('completeStream()', () => {
     it('skips empty content chunks (null and empty string)', async () => {
       async function* fakeStream() {
-        yield makeChunk(null);        // first chunk — empty delta
+        yield makeChunk(null); // first chunk — empty delta
         yield makeChunk('hello');
         yield makeChunk(' world');
-        yield makeChunk('');          // empty string delta
-        yield makeChunk(null);        // last chunk — empty delta
+        yield makeChunk(''); // empty string delta
+        yield makeChunk(null); // last chunk — empty delta
       }
       mockCreate.mockResolvedValue(fakeStream());
 
@@ -314,7 +326,9 @@ describe('OpenAIAdapter (unit)', () => {
     });
 
     it("maps status 400 with 'context_length' in message → context_too_long", () => {
-      const result = adapter.mapError(makeApiError(400, "This model's maximum context_length is 4096"));
+      const result = adapter.mapError(
+        makeApiError(400, "This model's maximum context_length is 4096"),
+      );
       expect(result.code).toBe('context_too_long');
       expect(result.retryable).toBe(false);
       expect(result.statusCode).toBe(400);
@@ -365,7 +379,10 @@ describe('OpenAIAdapter (integration)', () => {
     const request: GatewayRequest = {
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'user', content: 'Reply with exactly three words: hello world test' },
+        {
+          role: 'user',
+          content: 'Reply with exactly three words: hello world test',
+        },
       ],
       maxTokens: 20,
       tenantId: 'integration-test',
@@ -377,8 +394,13 @@ describe('OpenAIAdapter (integration)', () => {
     expect(result.provider).toBe('openai');
     expect(result.promptTokens).toBeGreaterThan(0);
     expect(result.completionTokens).toBeGreaterThan(0);
-    expect(result.totalTokens).toBe(result.promptTokens + result.completionTokens);
+    expect(result.totalTokens).toBe(
+      result.promptTokens + result.completionTokens,
+    );
 
-    console.log('[integration] OpenAI response:', JSON.stringify(result, null, 2));
+    console.log(
+      '[integration] OpenAI response:',
+      JSON.stringify(result, null, 2),
+    );
   });
 });

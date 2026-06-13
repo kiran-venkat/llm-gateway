@@ -19,7 +19,10 @@ export interface IProviderAdapter {
    * Returns an AsyncIterable of StreamChunk. The final chunk has done=true.
    * Cannot be cached — caller must consume the stream.
    */
-  completeStream(request: GatewayRequest, apiKey: string): AsyncIterable<StreamChunk>;
+  completeStream(
+    request: GatewayRequest,
+    apiKey: string,
+  ): AsyncIterable<StreamChunk>;
 
   /**
    * Cheap token estimate without a network call.

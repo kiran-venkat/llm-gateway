@@ -241,7 +241,10 @@ describe('GatewayService', () => {
       await jest.advanceTimersByTimeAsync(500);
       const result = await caught;
 
-      expect(result).toMatchObject({ code: 'provider_unavailable', statusCode: 503 });
+      expect(result).toMatchObject({
+        code: 'provider_unavailable',
+        statusCode: 503,
+      });
       expect(mockAdapter.complete).toHaveBeenCalledTimes(2);
     });
 

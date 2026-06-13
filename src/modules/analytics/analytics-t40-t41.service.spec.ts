@@ -14,7 +14,9 @@ import { CostQueryDto } from './dto/cost-query.dto';
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeRepo(overrides: Partial<jest.Mocked<AnalyticsRepository>> = {}): jest.Mocked<AnalyticsRepository> {
+function makeRepo(
+  overrides: Partial<jest.Mocked<AnalyticsRepository>> = {},
+): jest.Mocked<AnalyticsRepository> {
   return {
     getUsageTimeSeries: jest.fn().mockResolvedValue([]),
     getRequests: jest.fn().mockResolvedValue([]),
@@ -29,7 +31,9 @@ function makeCache(): jest.Mocked<CacheService> {
   return { getStats: jest.fn() } as unknown as jest.Mocked<CacheService>;
 }
 
-function makeRequestsQuery(overrides: Partial<RequestsQueryDto> = {}): RequestsQueryDto {
+function makeRequestsQuery(
+  overrides: Partial<RequestsQueryDto> = {},
+): RequestsQueryDto {
   const dto = new RequestsQueryDto();
   dto.page = 1;
   dto.limit = 50;
@@ -85,7 +89,10 @@ describe('AnalyticsService.getRequestLog', () => {
     repo.getRequests.mockResolvedValue(rows);
     repo.countRequests.mockResolvedValue(150);
 
-    const result = await service.getRequestLog(TENANT, makeRequestsQuery({ page: 2, limit: 50 }));
+    const result = await service.getRequestLog(
+      TENANT,
+      makeRequestsQuery({ page: 2, limit: 50 }),
+    );
 
     expect(result.data).toEqual(rows);
     expect(result.total).toBe(150);
@@ -97,7 +104,10 @@ describe('AnalyticsService.getRequestLog', () => {
   it('pages = Math.ceil(total / limit)', async () => {
     repo.countRequests.mockResolvedValue(101);
 
-    const result = await service.getRequestLog(TENANT, makeRequestsQuery({ limit: 50 }));
+    const result = await service.getRequestLog(
+      TENANT,
+      makeRequestsQuery({ limit: 50 }),
+    );
 
     expect(result.pages).toBe(3); // Math.ceil(101 / 50) = 3
   });
@@ -129,7 +139,10 @@ describe('AnalyticsService.getRequestLog', () => {
   });
 
   it('passes provider filter to repository', async () => {
-    await service.getRequestLog(TENANT, makeRequestsQuery({ provider: 'anthropic' }));
+    await service.getRequestLog(
+      TENANT,
+      makeRequestsQuery({ provider: 'anthropic' }),
+    );
     expect(repo.getRequests).toHaveBeenCalledWith(
       TENANT,
       expect.objectContaining({ provider: 'anthropic' }),
@@ -173,15 +186,20 @@ describe('AnalyticsService.getCostBreakdown', () => {
   });
 
   const providerRows: CostByProviderRow[] = [
-    { provider: 'openai',    cost_usd: 0.6, requests: 600 },
+    { provider: 'openai', cost_usd: 0.6, requests: 600 },
     { provider: 'anthropic', cost_usd: 0.3, requests: 300 },
-    { provider: 'gemini',    cost_usd: 0.1, requests: 100 },
+    { provider: 'gemini', cost_usd: 0.1, requests: 100 },
   ];
 
   const modelRows: CostByModelRow[] = [
-    { model: 'gpt-4o',        provider: 'openai',    cost_usd: 0.6, requests: 600 },
-    { model: 'claude-3-opus', provider: 'anthropic', cost_usd: 0.3, requests: 300 },
-    { model: 'gemini-pro',    provider: 'gemini',    cost_usd: 0.1, requests: 100 },
+    { model: 'gpt-4o', provider: 'openai', cost_usd: 0.6, requests: 600 },
+    {
+      model: 'claude-3-opus',
+      provider: 'anthropic',
+      cost_usd: 0.3,
+      requests: 300,
+    },
+    { model: 'gemini-pro', provider: 'gemini', cost_usd: 0.1, requests: 100 },
   ];
 
   it('returns correct total_cost_usd', async () => {
@@ -250,10 +268,12 @@ describe('AnalyticsService.getCostBreakdown', () => {
   it('throws 400 when start is after end', async () => {
     const query = makeCostQuery({ start: '2024-01-31', end: '2024-01-01' });
 
-    await expect(service.getCostBreakdown(TENANT, query)).rejects.toMatchObject({
-      status: HttpStatus.BAD_REQUEST,
-      response: { error: 'invalid_date_range' },
-    });
+    await expect(service.getCostBreakdown(TENANT, query)).rejects.toMatchObject(
+      {
+        status: HttpStatus.BAD_REQUEST,
+        response: { error: 'invalid_date_range' },
+      },
+    );
   });
 
   it('returns period in response', async () => {

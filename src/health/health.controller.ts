@@ -24,16 +24,26 @@ export class HealthController {
     @InjectRedis() private readonly redis: Redis,
   ) {}
 
-  @ApiOperation({ summary: 'Liveness probe', description: 'Always returns 200. Confirms the process is running.' })
+  @ApiOperation({
+    summary: 'Liveness probe',
+    description: 'Always returns 200. Confirms the process is running.',
+  })
   @ApiResponse({ status: 200, description: '{ status: "ok" }' })
   @Get()
   liveness(): { status: string } {
     return { status: 'ok' };
   }
 
-  @ApiOperation({ summary: 'Readiness probe', description: 'Checks DB and Redis connectivity in parallel. Returns 503 if either is unreachable.' })
+  @ApiOperation({
+    summary: 'Readiness probe',
+    description:
+      'Checks DB and Redis connectivity in parallel. Returns 503 if either is unreachable.',
+  })
   @ApiResponse({ status: 200, description: 'All dependencies healthy' })
-  @ApiResponse({ status: 503, description: 'One or more dependencies unreachable' })
+  @ApiResponse({
+    status: 503,
+    description: 'One or more dependencies unreachable',
+  })
   @Get('ready')
   async readiness(): Promise<ReadinessResponse> {
     const [dbSettled, redisSettled] = await Promise.allSettled([
@@ -41,8 +51,22 @@ export class HealthController {
       this.checkRedis(),
     ]);
 
-    const db = dbSettled.status === 'fulfilled' ? dbSettled.value : { status: 'error' as const, latencyMs: 0, error: String((dbSettled as PromiseRejectedResult).reason) };
-    const redis = redisSettled.status === 'fulfilled' ? redisSettled.value : { status: 'error' as const, latencyMs: 0, error: String((redisSettled as PromiseRejectedResult).reason) };
+    const db =
+      dbSettled.status === 'fulfilled'
+        ? dbSettled.value
+        : {
+            status: 'error' as const,
+            latencyMs: 0,
+            error: String((dbSettled as PromiseRejectedResult).reason),
+          };
+    const redis =
+      redisSettled.status === 'fulfilled'
+        ? redisSettled.value
+        : {
+            status: 'error' as const,
+            latencyMs: 0,
+            error: String((redisSettled as PromiseRejectedResult).reason),
+          };
 
     const allOk = db.status === 'ok' && redis.status === 'ok';
 

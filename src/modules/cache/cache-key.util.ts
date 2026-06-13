@@ -1,7 +1,10 @@
 import { createHash } from 'crypto';
 import { GatewayRequest } from '../../common/dto/gateway-request.dto';
 
-export function buildCacheKey(tenantId: string, request: GatewayRequest): string {
+export function buildCacheKey(
+  tenantId: string,
+  request: GatewayRequest,
+): string {
   const hash = createHash('sha256');
 
   hash.update(tenantId);

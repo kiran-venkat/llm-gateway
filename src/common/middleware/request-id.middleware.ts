@@ -17,7 +17,9 @@ export class RequestIdMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction): void {
     const inbound = req.headers['x-request-id'];
     const requestId =
-      typeof inbound === 'string' && inbound.length > 0 ? inbound : randomUUID();
+      typeof inbound === 'string' && inbound.length > 0
+        ? inbound
+        : randomUUID();
 
     req.requestId = requestId;
     // Set on response immediately — survives AuthGuard throws, SSE flush, etc.

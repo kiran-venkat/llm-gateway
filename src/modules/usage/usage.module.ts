@@ -17,7 +17,14 @@ import { BudgetCheckerService } from './budget-checker.service';
     ScheduleModule.forRoot(),
     CacheModule,
   ],
-  providers: [CacheJob, UsageJob, DailyCloseJob, CostCalculatorService, UsageRepository, BudgetCheckerService],
+  providers: [
+    CacheJob,
+    UsageJob,
+    DailyCloseJob,
+    CostCalculatorService,
+    UsageRepository,
+    BudgetCheckerService,
+  ],
   exports: [CostCalculatorService, UsageRepository, BudgetCheckerService],
 })
 export class UsageModule {}

@@ -75,7 +75,9 @@ describe('BaseRepository', () => {
       it.each(INVALID_TENANT_IDS)(
         'throws MissingTenantIdError for tenantId %j',
         async (bad) => {
-          await expect(repo.findMany(bad)).rejects.toThrow(MissingTenantIdError);
+          await expect(repo.findMany(bad)).rejects.toThrow(
+            MissingTenantIdError,
+          );
         },
       );
     });

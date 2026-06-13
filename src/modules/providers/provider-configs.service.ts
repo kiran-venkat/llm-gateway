@@ -73,7 +73,10 @@ export class ProviderConfigsService {
 
   /** Soft-delete: sets is_active = false. Hard deletes are not supported. */
   async remove(tenantId: string, provider: string): Promise<void> {
-    const existing = await this.repo.findByTenantAndProvider(tenantId, provider);
+    const existing = await this.repo.findByTenantAndProvider(
+      tenantId,
+      provider,
+    );
     if (!existing) {
       throw new HttpException(
         `No provider config found for '${provider}'`,

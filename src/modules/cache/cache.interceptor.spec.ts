@@ -11,9 +11,16 @@ import { AuthContext } from '../../common/interfaces/auth-context.interface';
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const TENANT: AuthContext = { tenantId: 'tenant-aaa', apiKeyId: 'key-1', plan: 'pro' };
+const TENANT: AuthContext = {
+  tenantId: 'tenant-aaa',
+  apiKeyId: 'key-1',
+  plan: 'pro',
+};
 
-const DECISION: RoutingDecision = { provider: 'anthropic', model: 'claude-haiku-4-5-20251001' };
+const DECISION: RoutingDecision = {
+  provider: 'anthropic',
+  model: 'claude-haiku-4-5-20251001',
+};
 
 const CACHED: CachedResponse = {
   content: 'Four.',
@@ -159,7 +166,11 @@ describe('CacheInterceptor', () => {
   describe('cache hit', () => {
     beforeEach(() => {
       cacheService = makeCacheService(CACHED);
-      interceptor = new CacheInterceptor(cacheService, routerService, queue as never);
+      interceptor = new CacheInterceptor(
+        cacheService,
+        routerService,
+        queue as never,
+      );
     });
 
     it('never calls next.handle() on cache hit', async () => {
@@ -188,12 +199,21 @@ describe('CacheInterceptor', () => {
       const req = makeReq();
       const res = makeRes();
 
-      const obs$ = await interceptor.intercept(makeContext(req, res), makeNext());
+      const obs$ = await interceptor.intercept(
+        makeContext(req, res),
+        makeNext(),
+      );
       await firstValueFrom(obs$.pipe(toArray()), { defaultValue: [] });
 
       expect(res.setHeader).toHaveBeenCalledWith('X-Cache-Type', 'exact');
-      expect(res.setHeader).toHaveBeenCalledWith('X-Gateway-Provider', 'anthropic');
-      expect(res.setHeader).toHaveBeenCalledWith('X-Gateway-Model', 'claude-haiku-4-5-20251001');
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'X-Gateway-Provider',
+        'anthropic',
+      );
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'X-Gateway-Model',
+        'claude-haiku-4-5-20251001',
+      );
       expect(res.setHeader).toHaveBeenCalledWith('X-Latency-Ms', '0');
     });
 
@@ -201,7 +221,10 @@ describe('CacheInterceptor', () => {
       const req = makeReq();
       const res = makeRes();
 
-      const obs$ = await interceptor.intercept(makeContext(req, res), makeNext());
+      const obs$ = await interceptor.intercept(
+        makeContext(req, res),
+        makeNext(),
+      );
       await firstValueFrom(obs$.pipe(toArray()), { defaultValue: [] });
 
       expect(res.status).toHaveBeenCalledWith(200);
@@ -227,7 +250,10 @@ describe('CacheInterceptor', () => {
       const req = makeReq();
       const res = makeRes();
 
-      const obs$ = await interceptor.intercept(makeContext(req, res), makeNext());
+      const obs$ = await interceptor.intercept(
+        makeContext(req, res),
+        makeNext(),
+      );
       await firstValueFrom(obs$.pipe(toArray()), { defaultValue: [] });
 
       // allow microtasks (fire-and-forget void promise) to settle
@@ -243,7 +269,9 @@ describe('CacheInterceptor', () => {
 
   describe('bypass conditions', () => {
     it('skips cache entirely when stream: true', async () => {
-      const req = makeReq({ body: { model: 'gpt-4o', messages: [], stream: true } });
+      const req = makeReq({
+        body: { model: 'gpt-4o', messages: [], stream: true },
+      });
       const res = makeRes();
       const next = makeNext();
 

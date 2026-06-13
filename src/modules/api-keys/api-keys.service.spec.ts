@@ -49,7 +49,9 @@ describe('ApiKeysService', () => {
 
   beforeEach(() => {
     repo = makeMockRepo();
-    const mockRedis = { del: jest.fn().mockResolvedValue(1) } as unknown as import('ioredis').Redis;
+    const mockRedis = {
+      del: jest.fn().mockResolvedValue(1),
+    } as unknown as import('ioredis').Redis;
     service = new ApiKeysService(repo, mockRedis);
   });
 
@@ -83,21 +85,28 @@ describe('ApiKeysService', () => {
     it('stores the SHA-256 hash, not the raw key', async () => {
       const result = await service.generate(TENANT_ID, {});
       const expectedHash = hashApiKey(result.key);
-      const storedHash = (repo.create.mock.calls[0]?.[1] as Record<string, unknown>)['keyHash'];
+      const storedHash = (
+        repo.create.mock.calls[0]?.[1] as Record<string, unknown>
+      )['keyHash'];
       expect(storedHash).toBe(expectedHash);
       expect(storedHash).not.toBe(result.key);
     });
 
     it('stores a 16-char keyPrefix (first 16 chars of the raw key)', async () => {
       const result = await service.generate(TENANT_ID, {});
-      const storedPrefix = (repo.create.mock.calls[0]?.[1] as Record<string, unknown>)['keyPrefix'];
+      const storedPrefix = (
+        repo.create.mock.calls[0]?.[1] as Record<string, unknown>
+      )['keyPrefix'];
       expect(storedPrefix).toBe(result.key.slice(0, 16));
       expect(String(storedPrefix)).toHaveLength(16);
     });
 
     it('does not store the raw key in the repository call', async () => {
       const result = await service.generate(TENANT_ID, {});
-      const createArg = repo.create.mock.calls[0]?.[1] as Record<string, unknown>;
+      const createArg = repo.create.mock.calls[0]?.[1] as Record<
+        string,
+        unknown
+      >;
       const storedValues = Object.values(createArg).map(String);
       expect(storedValues).not.toContain(result.key);
     });
@@ -118,13 +127,19 @@ describe('ApiKeysService', () => {
 
     it('passes expiresAt when expires_at is provided', async () => {
       await service.generate(TENANT_ID, { expires_at: '2027-01-01T00:00:00Z' });
-      const createArg = repo.create.mock.calls[0]?.[1] as Record<string, unknown>;
+      const createArg = repo.create.mock.calls[0]?.[1] as Record<
+        string,
+        unknown
+      >;
       expect(createArg['expiresAt']).toBeInstanceOf(Date);
     });
 
     it('omits expiresAt when expires_at is not provided', async () => {
       await service.generate(TENANT_ID, {});
-      const createArg = repo.create.mock.calls[0]?.[1] as Record<string, unknown>;
+      const createArg = repo.create.mock.calls[0]?.[1] as Record<
+        string,
+        unknown
+      >;
       expect(createArg).not.toHaveProperty('expiresAt');
     });
 
@@ -155,14 +170,18 @@ describe('ApiKeysService', () => {
 
     it('throws 404 when the key does not exist for this tenant', async () => {
       repo.findById.mockResolvedValue(null);
-      await expect(service.revoke(TENANT_ID, 'unknown-id')).rejects.toMatchObject({
+      await expect(
+        service.revoke(TENANT_ID, 'unknown-id'),
+      ).rejects.toMatchObject({
         status: HttpStatus.NOT_FOUND,
       });
     });
 
     it('throws HttpException (not a generic Error)', async () => {
       repo.findById.mockResolvedValue(null);
-      await expect(service.revoke(TENANT_ID, 'x')).rejects.toBeInstanceOf(HttpException);
+      await expect(service.revoke(TENANT_ID, 'x')).rejects.toBeInstanceOf(
+        HttpException,
+      );
     });
 
     it('does not call update when the key is not found', async () => {
@@ -187,7 +206,10 @@ describe('ApiKeysService', () => {
 
   describe('listForTenant', () => {
     it('returns a list of key metadata for the tenant', async () => {
-      repo.findMany.mockResolvedValue([makeApiKey(), makeApiKey({ id: 'key-2' })]);
+      repo.findMany.mockResolvedValue([
+        makeApiKey(),
+        makeApiKey({ id: 'key-2' }),
+      ]);
       const result = await service.listForTenant(TENANT_ID);
       expect(result).toHaveLength(2);
     });

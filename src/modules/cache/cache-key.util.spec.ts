@@ -4,9 +4,7 @@ import { GatewayRequest } from '../../common/dto/gateway-request.dto';
 const baseRequest: GatewayRequest = {
   provider: 'openai',
   model: 'gpt-4o',
-  messages: [
-    { role: 'user', content: 'Hello' },
-  ],
+  messages: [{ role: 'user', content: 'Hello' }],
   maxTokens: 512,
   temperature: 0.7,
   stream: false,
@@ -102,7 +100,10 @@ describe('buildCacheKey', () => {
 
   describe('undefined normalization', () => {
     it('treats undefined temperature and temperature=0 as the same', () => {
-      const k1 = buildCacheKey('t1', { ...baseRequest, temperature: undefined });
+      const k1 = buildCacheKey('t1', {
+        ...baseRequest,
+        temperature: undefined,
+      });
       const k2 = buildCacheKey('t1', { ...baseRequest, temperature: 0 });
       expect(k1).toBe(k2);
     });

@@ -72,7 +72,10 @@ describe('AppLoggerService', () => {
 
     it('includes requestId and tenantId from meta', () => {
       const logger = makeLogger();
-      logger.log('Auth cache hit', { requestId: 'req-abc', tenantId: 'tid-xyz' });
+      logger.log('Auth cache hit', {
+        requestId: 'req-abc',
+        tenantId: 'tid-xyz',
+      });
 
       const entry = captureEntry();
       expect(entry.requestId).toBe('req-abc');
@@ -181,10 +184,18 @@ describe('AppLoggerService', () => {
       // Mock NestJS Logger methods so they don't write to stdout themselves.
       // This lets us assert that (a) NestJS Logger is called, and
       // (b) our JSON writer is NOT called.
-      nestLogSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
-      nestWarnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
-      nestErrorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
-      nestDebugSpy = jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => {});
+      nestLogSpy = jest
+        .spyOn(Logger.prototype, 'log')
+        .mockImplementation(() => {});
+      nestWarnSpy = jest
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => {});
+      nestErrorSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => {});
+      nestDebugSpy = jest
+        .spyOn(Logger.prototype, 'debug')
+        .mockImplementation(() => {});
     });
 
     afterEach(() => {

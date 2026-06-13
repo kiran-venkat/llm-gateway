@@ -5,10 +5,7 @@ import { CacheService } from './cache.service';
 import { CacheInterceptor } from './cache.interceptor';
 
 @Module({
-  imports: [
-    BullModule.registerQueue({ name: 'usage' }),
-    RouterModule,
-  ],
+  imports: [BullModule.registerQueue({ name: 'usage' }), RouterModule],
   providers: [CacheService, CacheInterceptor],
   exports: [CacheService, CacheInterceptor],
 })

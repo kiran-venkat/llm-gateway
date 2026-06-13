@@ -15,7 +15,9 @@ function makePrisma(opts: { fail?: boolean } = {}): jest.Mocked<PrismaService> {
   } as unknown as jest.Mocked<PrismaService>;
 }
 
-function makeRedis(opts: { fail?: boolean } = {}): jest.Mocked<Pick<Redis, 'ping'>> {
+function makeRedis(
+  opts: { fail?: boolean } = {},
+): jest.Mocked<Pick<Redis, 'ping'>> {
   return {
     ping: opts.fail
       ? jest.fn().mockRejectedValue(new Error('Redis ECONNREFUSED'))
@@ -78,7 +80,11 @@ describe('GET /health/ready', () => {
     } catch (err: unknown) {
       const ex = err as HttpException;
       expect(ex.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
-      const body = ex.getResponse() as { status: string; db: { status: string }; redis: { status: string } };
+      const body = ex.getResponse() as {
+        status: string;
+        db: { status: string };
+        redis: { status: string };
+      };
       expect(body.status).toBe('degraded');
       expect(body.db.status).toBe('error');
       expect(body.redis.status).toBe('ok');
@@ -95,7 +101,11 @@ describe('GET /health/ready', () => {
     } catch (err: unknown) {
       const ex = err as HttpException;
       expect(ex.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
-      const body = ex.getResponse() as { status: string; db: { status: string }; redis: { status: string } };
+      const body = ex.getResponse() as {
+        status: string;
+        db: { status: string };
+        redis: { status: string };
+      };
       expect(body.status).toBe('degraded');
       expect(body.db.status).toBe('ok');
       expect(body.redis.status).toBe('error');
@@ -112,7 +122,11 @@ describe('GET /health/ready', () => {
     } catch (err: unknown) {
       const ex = err as HttpException;
       expect(ex.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
-      const body = ex.getResponse() as { status: string; db: { status: string }; redis: { status: string } };
+      const body = ex.getResponse() as {
+        status: string;
+        db: { status: string };
+        redis: { status: string };
+      };
       expect(body.db.status).toBe('error');
       expect(body.redis.status).toBe('error');
     }

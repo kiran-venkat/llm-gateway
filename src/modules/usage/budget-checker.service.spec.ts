@@ -17,11 +17,13 @@ function makePrisma(opts: {
 }): jest.Mocked<PrismaService> {
   return {
     tenant: {
-      findUnique: jest.fn().mockResolvedValue(
-        opts.monthlyBudgetUsd === null
-          ? null
-          : { monthlyBudgetUsd: opts.monthlyBudgetUsd },
-      ),
+      findUnique: jest
+        .fn()
+        .mockResolvedValue(
+          opts.monthlyBudgetUsd === null
+            ? null
+            : { monthlyBudgetUsd: opts.monthlyBudgetUsd },
+        ),
     },
     $queryRaw: jest.fn().mockResolvedValue([{ total: opts.monthlySpend }]),
   } as unknown as jest.Mocked<PrismaService>;

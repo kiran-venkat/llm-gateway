@@ -21,9 +21,7 @@ import { ProviderConfig } from '@prisma/client';
 const TENANT_ID = 'tenant-111';
 const PROVIDER = 'anthropic';
 
-function makeConfig(
-  overrides: Partial<ProviderConfig> = {},
-): ProviderConfig {
+function makeConfig(overrides: Partial<ProviderConfig> = {}): ProviderConfig {
   return {
     id: 'cfg-1',
     tenantId: TENANT_ID,
@@ -101,7 +99,9 @@ function makeMockRegistry(): jest.Mocked<AdapterRegistry> {
   } as unknown as jest.Mocked<AdapterRegistry>;
 }
 
-function makeMockRedis(budgetExceeded = false): jest.Mocked<Pick<Redis, 'get'>> {
+function makeMockRedis(
+  budgetExceeded = false,
+): jest.Mocked<Pick<Redis, 'get'>> {
   return {
     get: jest.fn().mockResolvedValue(budgetExceeded ? '1' : null),
   } as unknown as jest.Mocked<Pick<Redis, 'get'>>;
@@ -164,7 +164,12 @@ describe('RateLimitGuard', () => {
   it('throws 429 with rpm limit_type when RPM is exhausted', async () => {
     repo.findByTenantAndProvider.mockResolvedValue(makeConfig());
     rateLimitService.checkRpm.mockResolvedValue(
-      makeRateLimitResult({ allowed: false, remaining: 0, retryAfterMs: 60_000, limitType: 'rpm' }),
+      makeRateLimitResult({
+        allowed: false,
+        remaining: 0,
+        retryAfterMs: 60_000,
+        limitType: 'rpm',
+      }),
     );
     const ctx = makeContext();
 
@@ -192,7 +197,12 @@ describe('RateLimitGuard', () => {
       makeRateLimitResult({ allowed: true, remaining: 59, limitType: 'rpm' }),
     );
     rateLimitService.checkTpm.mockResolvedValue(
-      makeRateLimitResult({ allowed: false, remaining: 0, retryAfterMs: 60_000, limitType: 'tpm' }),
+      makeRateLimitResult({
+        allowed: false,
+        remaining: 0,
+        retryAfterMs: 60_000,
+        limitType: 'tpm',
+      }),
     );
     registry.has.mockReturnValue(true);
     registry.get.mockReturnValue({
@@ -218,7 +228,11 @@ describe('RateLimitGuard', () => {
 
   it('returns true and attaches rateLimit to request when all checks pass', async () => {
     repo.findByTenantAndProvider.mockResolvedValue(makeConfig());
-    const rpmResult = makeRateLimitResult({ allowed: true, remaining: 55, limitType: 'rpm' });
+    const rpmResult = makeRateLimitResult({
+      allowed: true,
+      remaining: 55,
+      limitType: 'rpm',
+    });
     rateLimitService.checkRpm.mockResolvedValue(rpmResult);
     // registry.has returns false (default) → TPM check skipped
 
