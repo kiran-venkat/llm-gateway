@@ -39,6 +39,7 @@ V1 COMPLETE. All phases done T01–T56.
 - Module specs: .claude/docs/module-specs.md
 - Task breakdown: .claude/docs/tasks.md
 - Spikes: .claude/docs/spikes.md
+- V1 scope and limitations: docs/v1-scope-and-limitations.md
 
 ## Code Rules (always apply)
 
